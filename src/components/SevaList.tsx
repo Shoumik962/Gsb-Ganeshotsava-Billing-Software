@@ -10,7 +10,7 @@ import { rupees } from '../lib/format';
  * nothing is hidden from someone who simply scrolls.
  */
 export default function SevaList() {
-  const { has, slotFor, addToCart, removeFromCart } = useCart();
+  const { has, toggle } = useCart();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const toggleGroup = (id: SevaCategory) =>
@@ -64,9 +64,7 @@ export default function SevaList() {
                     key={seva.id}
                     seva={seva}
                     selected={has(seva.id)}
-                    selectedSlotId={slotFor(seva.id)}
-                    onAdd={addToCart}
-                    onRemove={removeFromCart}
+                    onToggle={toggle}
                   />
                 ))}
               </ul>
