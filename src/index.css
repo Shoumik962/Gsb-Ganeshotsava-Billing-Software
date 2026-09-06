@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* Sticky header + section anchors: keep headings clear of the header. */
+    scroll-padding-top: 5.5rem;
+  }
+
+  body {
+    @apply bg-cream-100 text-maroon-950 font-body antialiased;
+  }
+
+  h1, h2, h3 {
+    @apply font-display;
+  }
+
+  /* Visible, warm focus ring — many devotees navigate by keyboard. */
+  :focus-visible {
+    outline: 2px solid theme('colors.maroon.700');
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-6 lg:px-8;
+  }
+
+  /* Form fields: labels always visible above, generous touch targets. */
+  .field-label {
+    @apply block text-sm font-medium text-maroon-900 mb-1.5;
+  }
+
+  .field-input {
+    @apply w-full rounded-lg border border-maroon-200 bg-white px-4 py-3 text-base
+           text-maroon-950 placeholder:text-maroon-300
+           focus:border-maroon-600 focus:ring-2 focus:ring-maroon-200 focus:outline-none
+           transition-colors;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-maroon-800
+           px-6 py-3.5 text-base font-semibold text-cream-50 shadow-soft
+           hover:bg-maroon-900 active:bg-maroon-950
+           disabled:opacity-45 disabled:cursor-not-allowed transition-colors;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-maroon-300
+           bg-white px-6 py-3.5 text-base font-semibold text-maroon-800
+           hover:bg-maroon-50 active:bg-maroon-100 transition-colors;
+  }
+
+  .card {
+    @apply rounded-xl border border-maroon-100 bg-white shadow-soft;
+  }
+}
