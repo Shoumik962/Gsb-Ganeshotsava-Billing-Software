@@ -1,13 +1,50 @@
 import { useState } from 'react';
 import { useCart } from '../hooks/useCart';
 import { rupees } from '../lib/format';
-import { temple } from '../data/temple';
 import { sevadarGuidance } from '../data/timings';
 import { submitSevaBooking, type DevoteeDetails } from '../lib/api';
 import { OrnamentalDivider } from './Ornaments';
-import type { Seva } from '../data/sevas';
+import {
+  ZapIcon,
+  CardIcon,
+  LockIcon,
+  UserCheckIcon,
+  PrayingHandsIcon,
+} from './Icons';
+import ReceiptView from './ReceiptView';
+import { saveBooking, type BookingRecord } from '../lib/bookingStore';
 
 type Stage = 'details' | 'review' | 'done';
+
+const GOTRAS = [
+  'Kashyapa',
+  'Bharadwaja',
+  'Vashishta',
+  'Vishwamitra',
+  'Jamadagni',
+  'Gautama',
+  'Atri',
+  'Kaundinya',
+  'Harita',
+  'Garga',
+  'Shandilya',
+  'Vatsa',
+];
+
+const NAKSHATRAS = [
+  'Ashwini',
+  'Rohini',
+  'Mrigashira',
+  'Punarvasu',
+  'Pushya',
+  'Magha',
+  'Hasta',
+  'Chitra',
+  'Swati',
+  'Anuradha',
+  'Shravana',
+  'Revati',
+];
 
 const EMPTY: DevoteeDetails = {
   name: '',
@@ -16,6 +53,7 @@ const EMPTY: DevoteeDetails = {
   phone: '',
   email: '',
   preferredDate: '',
+  attendanceMode: 'in-person',
 };
 
 export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
@@ -24,9 +62,7 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
   const [details, setDetails] = useState<DevoteeDetails>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof DevoteeDetails, string>>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [receiptNo, setReceiptNo] = useState<string | null>(null);
-  // Captured before the cart is cleared, so the confirmation can still list them.
-  const [booked, setBooked] = useState<{ items: Seva[]; total: number }>({ items: [], total: 0 });
+  const [savedRecord, setSavedRecord] = useState<BookingRecord | null>(null);
 
   const set = (key: keyof DevoteeDetails, value: string) => {
     setDetails((prev) => ({ ...prev, [key]: value }));
@@ -50,74 +86,45 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
 
   const handlePay = async () => {
     setSubmitting(true);
-    const snapshot = { items: [...items], total };
     const result = await submitSevaBooking({
       sevaIds: items.map((s) => s.id),
       devotee: details,
       amount: total,
     });
-    setBooked(snapshot);
-    setReceiptNo(result.receiptNo);
+
+    const record: BookingRecord = {
+      id: result.receiptNo,
+      receiptNo: result.receiptNo,
+      type: 'seva',
+      createdAt: new Date().toISOString(),
+      devoteeName: details.name,
+      phone: details.phone,
+      email: details.email,
+      gotra: details.gotra,
+      nakshatra: details.nakshatra,
+      preferredDate: details.preferredDate,
+      attendanceMode: details.attendanceMode || 'in-person',
+      items: items.map((s) => ({
+        id: s.id,
+        name: s.name,
+        price: s.price,
+        timing: s.timing,
+      })),
+      total,
+      status: 'Confirmed',
+      paymentMode: 'Online Payment (UPI/Card)',
+    };
+
+    saveBooking(record);
+    setSavedRecord(record);
     setSubmitting(false);
     setStage('done');
     clearCart();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (stage === 'done' && receiptNo) {
-    return (
-      <div className="mx-auto max-w-2xl">
-        <div className="card p-6 text-center sm:p-10">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-maroon-50 text-maroon-800">
-            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <h2 className="mt-5 font-display text-3xl font-semibold text-maroon-900">
-            Seva Booking Confirmed
-          </h2>
-          <p className="mt-2 text-base leading-relaxed text-maroon-800/80">
-            Thank you, {details.name}. Your sevas have been recorded at {temple.name}.
-          </p>
-
-          <div className="mt-6 rounded-lg bg-cream-100 px-5 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold-700">
-              Receipt Number
-            </p>
-            <p className="mt-1 font-display text-2xl font-semibold text-maroon-900">{receiptNo}</p>
-          </div>
-
-          <ul className="mt-6 divide-y divide-maroon-100 text-left">
-            {booked.items.map((seva) => (
-              <li key={seva.id} className="flex items-start justify-between gap-4 py-2.5">
-                <span className="text-sm text-maroon-900">{seva.name}</span>
-                <span className="shrink-0 text-sm font-semibold tabular-nums text-maroon-900">
-                  {rupees(seva.price)}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 flex items-baseline justify-between border-t-2 border-maroon-200 pt-3">
-            <span className="text-sm font-semibold uppercase tracking-wide text-maroon-800">
-              Total Paid
-            </span>
-            <span className="font-display text-xl font-semibold tabular-nums text-maroon-900">
-              {rupees(booked.total)}
-            </span>
-          </div>
-
-          <p className="mt-6 text-sm leading-relaxed text-maroon-800/75">
-            A receipt has been sent to {details.email || 'the contact details provided'}. Please
-            carry this receipt number to the seva counter, and reach the temple at least 30 minutes
-            before the scheduled time.
-          </p>
-
-          <button onClick={onBack} className="btn-secondary mt-7 w-full sm:w-auto">
-            Back to Sevas
-          </button>
-        </div>
-      </div>
-    );
+  if (stage === 'done' && savedRecord) {
+    return <ReceiptView record={savedRecord} onClose={onBack} />;
   }
 
   if (count === 0) {
@@ -143,18 +150,18 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
         {stage === 'review' ? 'Edit details' : 'Back to seva list'}
       </button>
 
-      {/* Two visible steps — the devotee always knows a review comes before payment. */}
+      {/* Two visible steps */}
       <ol className="mb-7 flex items-center gap-3 text-sm font-medium" aria-label="Checkout progress">
         {(['details', 'review'] as const).map((s, i) => (
           <li key={s} className="flex items-center gap-3">
             <span
               className={`flex items-center gap-2 ${
-                stage === s ? 'text-maroon-900' : 'text-maroon-800/50'
+                stage === s ? 'text-maroon-900 font-bold' : 'text-maroon-800/50'
               }`}
             >
               <span
                 className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
-                  stage === s ? 'bg-maroon-800 text-cream-50' : 'bg-maroon-100 text-maroon-700'
+                  stage === s ? 'bg-maroon-800 text-cream-50 shadow-xs' : 'bg-maroon-100 text-maroon-700'
                 }`}
               >
                 {i + 1}
@@ -173,6 +180,66 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
             The sankalp is made in this name. Gotra and nakshatra are optional — leave them blank
             if you are unsure and the vaidik will proceed with the name alone.
           </p>
+
+          {/* Attendance Mode (In Person vs In Absentia) with clean vector icons */}
+          <div className="mt-6 rounded-xl border border-gold-300/80 bg-gold-50/50 p-4">
+            <label className="field-label mb-2 font-bold text-maroon-950">
+              Seva Attendance Mode <span className="text-maroon-700">*</span>
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-all ${
+                  details.attendanceMode === 'in-person'
+                    ? 'border-maroon-800 bg-white shadow-sm ring-1 ring-maroon-800'
+                    : 'border-maroon-200 bg-cream-50/70 hover:bg-white'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="attendanceMode"
+                  value="in-person"
+                  checked={details.attendanceMode === 'in-person'}
+                  onChange={() => set('attendanceMode', 'in-person')}
+                  className="mt-1 accent-maroon-800"
+                />
+                <div>
+                  <span className="flex items-center gap-1.5 font-bold text-sm text-maroon-950">
+                    <UserCheckIcon className="h-4 w-4 text-maroon-800" />
+                    <span>Attending in Person</span>
+                  </span>
+                  <span className="block text-xs text-maroon-800/75 mt-0.5 leading-snug">
+                    You or your family will attend at Dwarkanath Bhavan & collect Prasad.
+                  </span>
+                </div>
+              </label>
+
+              <label
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-all ${
+                  details.attendanceMode === 'absentia'
+                    ? 'border-maroon-800 bg-white shadow-sm ring-1 ring-maroon-800'
+                    : 'border-maroon-200 bg-cream-50/70 hover:bg-white'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="attendanceMode"
+                  value="absentia"
+                  checked={details.attendanceMode === 'absentia'}
+                  onChange={() => set('attendanceMode', 'absentia')}
+                  className="mt-1 accent-maroon-800"
+                />
+                <div>
+                  <span className="flex items-center gap-1.5 font-bold text-sm text-maroon-950">
+                    <PrayingHandsIcon className="h-4 w-4 text-gold-700" />
+                    <span>In-Absentia (Sankalp)</span>
+                  </span>
+                  <span className="block text-xs text-maroon-800/75 mt-0.5 leading-snug">
+                    Vaidik will chant Sankalp on your behalf. Prasad can be collected later.
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
 
           <div className="mt-6 space-y-5">
             <div>
@@ -204,9 +271,27 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
                   id="gotra"
                   className="field-input"
                   value={details.gotra}
+                  placeholder="e.g. Kashyapa, Bharadwaja..."
                   onChange={(e) => set('gotra', e.target.value)}
                 />
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {GOTRAS.slice(0, 6).map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => set('gotra', g)}
+                      className={`rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors ${
+                        details.gotra === g
+                          ? 'bg-maroon-800 text-cream-50'
+                          : 'bg-cream-100 text-maroon-800 hover:bg-cream-200'
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
               </div>
+
               <div>
                 <label htmlFor="nakshatra" className="field-label">
                   Nakshatra <span className="font-normal text-maroon-700/60">(optional)</span>
@@ -215,8 +300,25 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
                   id="nakshatra"
                   className="field-input"
                   value={details.nakshatra}
+                  placeholder="e.g. Rohini, Ashwini..."
                   onChange={(e) => set('nakshatra', e.target.value)}
                 />
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {NAKSHATRAS.slice(0, 6).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => set('nakshatra', n)}
+                      className={`rounded px-1.5 py-0.5 text-[11px] font-medium transition-colors ${
+                        details.nakshatra === n
+                          ? 'bg-maroon-800 text-cream-50'
+                          : 'bg-cream-100 text-maroon-800 hover:bg-cream-200'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -274,9 +376,30 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
             </div>
           </div>
 
-          <button type="submit" className="btn-primary mt-7 w-full">
+          <button type="submit" className="btn-primary mt-7 w-full shadow-md">
             Continue to Review
           </button>
+
+          {/* Payment Trust Badges without emojis */}
+          <div className="mt-5 border-t border-maroon-100 pt-4 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wider text-maroon-800/70 mb-2">
+              Supported Payment Methods
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-maroon-900">
+              <span className="inline-flex items-center gap-1 rounded bg-cream-100 px-2.5 py-1 border border-maroon-200/60">
+                <ZapIcon className="h-3 w-3 text-gold-700" />
+                <span>Instant UPI (GPay, PhonePe, Paytm)</span>
+              </span>
+              <span className="inline-flex items-center gap-1 rounded bg-cream-100 px-2.5 py-1 border border-maroon-200/60">
+                <CardIcon className="h-3 w-3 text-gold-700" />
+                <span>RuPay & NetBanking</span>
+              </span>
+              <span className="inline-flex items-center gap-1 rounded bg-cream-100 px-2.5 py-1 border border-maroon-200/60">
+                <LockIcon className="h-3 w-3 text-gold-700" />
+                <span>256-Bit SSL Encrypted</span>
+              </span>
+            </div>
+          </div>
         </form>
       ) : (
         <div className="card p-5 sm:p-7">
@@ -326,6 +449,22 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
             Devotee Details
           </h3>
           <dl className="mt-3 grid gap-x-6 gap-y-2.5 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-maroon-800/65">Attendance Mode</dt>
+              <dd className="font-bold text-maroon-900 flex items-center gap-1.5">
+                {details.attendanceMode === 'in-person' ? (
+                  <>
+                    <UserCheckIcon className="h-4 w-4 text-maroon-800" />
+                    <span>Attending in Person</span>
+                  </>
+                ) : (
+                  <>
+                    <PrayingHandsIcon className="h-4 w-4 text-gold-700" />
+                    <span>In-Absentia (Sankalp by Vaidik)</span>
+                  </>
+                )}
+              </dd>
+            </div>
             {(
               [
                 ['Name', details.name],
@@ -349,7 +488,7 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
             {sevadarGuidance}
           </p>
 
-          <button onClick={handlePay} disabled={submitting} className="btn-primary mt-6 w-full">
+          <button onClick={handlePay} disabled={submitting} className="btn-primary mt-6 w-full shadow-lift">
             {submitting ? 'Processing…' : `Proceed to Pay ${rupees(total)}`}
           </button>
           <button

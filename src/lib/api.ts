@@ -22,6 +22,7 @@ export interface DevoteeDetails {
   phone: string;
   email: string;
   preferredDate: string;
+  attendanceMode?: 'in-person' | 'absentia';
 }
 
 export interface SevaBookingPayload {

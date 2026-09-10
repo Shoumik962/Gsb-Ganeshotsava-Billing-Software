@@ -1,5 +1,6 @@
 import { temple } from '../data/temple';
 import { OrnamentalDivider } from './Ornaments';
+import { ZapIcon, CardIcon, LockIcon, CertificateIcon, PhoneIcon } from './Icons';
 import type { TabId } from '../types';
 
 export default function Footer({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
@@ -28,8 +29,9 @@ export default function Footer({ onNavigate }: { onNavigate: (tab: TabId) => voi
             <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-gold-300">Contact</h4>
             <ul className="mt-3 space-y-2 text-sm text-cream-200/80">
               <li>
-                <a href={`tel:${temple.phone.replace(/\s/g, '')}`} className="hover:text-gold-200">
-                  {temple.phone}
+                <a href={`tel:${temple.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 hover:text-gold-200">
+                  <PhoneIcon className="h-3.5 w-3.5 text-gold-400" />
+                  <span>{temple.phone}</span>
                 </a>
               </li>
               <li>
@@ -57,7 +59,7 @@ export default function Footer({ onNavigate }: { onNavigate: (tab: TabId) => voi
                 ] as [TabId, string][]
               ).map(([tab, label]) => (
                 <li key={label}>
-                  <button onClick={() => onNavigate(tab)} className="text-cream-200/80 hover:text-gold-200">
+                  <button onClick={() => onNavigate(tab)} className="text-cream-200/80 hover:text-gold-200 transition-colors">
                     {label}
                   </button>
                 </li>
@@ -66,8 +68,35 @@ export default function Footer({ onNavigate }: { onNavigate: (tab: TabId) => voi
           </div>
         </div>
 
-        {/* Clone-site warning — a standard trust pattern for temple trusts. */}
-        <div className="mt-10 rounded-xl border border-gold-700/40 bg-maroon-900/60 p-5">
+        {/* Official Trust & Payment Badges without emojis */}
+        <div className="mt-8 rounded-xl border border-maroon-800 bg-maroon-900/40 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 text-xs">
+            <span className="font-bold text-gold-300 uppercase tracking-wider">
+              Official & Secure Portal
+            </span>
+            <div className="flex flex-wrap items-center gap-3 text-cream-200/90 font-medium">
+              <span className="inline-flex items-center gap-1.5 rounded bg-maroon-950 px-2.5 py-1 border border-maroon-800">
+                <ZapIcon className="h-3.5 w-3.5 text-gold-400" />
+                <span>Instant UPI (GPay, PhonePe, Paytm, BHIM)</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded bg-maroon-950 px-2.5 py-1 border border-maroon-800">
+                <CardIcon className="h-3.5 w-3.5 text-gold-400" />
+                <span>RuPay & NetBanking</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded bg-maroon-950 px-2.5 py-1 border border-maroon-800">
+                <LockIcon className="h-3.5 w-3.5 text-gold-400" />
+                <span>256-Bit SSL Encrypted</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded bg-maroon-950 px-2.5 py-1 border border-maroon-800">
+                <CertificateIcon className="h-3.5 w-3.5 text-gold-400" />
+                <span>Section 80G Tax Exempted</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Clone-site warning */}
+        <div className="mt-6 rounded-xl border border-gold-700/40 bg-maroon-900/60 p-5">
           <p className="text-sm font-semibold text-gold-200">{temple.officialSiteNote}</p>
           <p className="mt-1.5 text-sm leading-relaxed text-cream-200/70">
             The temple does not authorise any agent or third-party website to collect seva or

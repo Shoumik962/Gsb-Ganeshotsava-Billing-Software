@@ -5,6 +5,7 @@ import HeroSection from './components/HeroSection';
 import SevaSection from './components/SevaSection';
 import DonationForm from './components/DonationForm';
 import AboutSection from './components/AboutSection';
+import ReceiptLookupModal from './components/ReceiptLookupModal';
 import { CartProvider } from './hooks/useCart';
 import { isTabId, type TabId } from './types';
 
@@ -20,6 +21,8 @@ function readTabFromHash(): TabId {
 
 function AppShell() {
   const [activeTab, setActiveTab] = useState<TabId>(readTabFromHash);
+  const [largeText, setLargeText] = useState(false);
+  const [lookupOpen, setLookupOpen] = useState(false);
 
   const navigate = (tab: TabId) => {
     setActiveTab(tab);
@@ -35,7 +38,7 @@ function AppShell() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className={`flex min-h-screen flex-col transition-all ${largeText ? 'senior-text-mode' : ''}`}>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-maroon-900 focus:px-4 focus:py-2 focus:text-cream-50"
@@ -43,7 +46,13 @@ function AppShell() {
         Skip to main content
       </a>
 
-      <Header activeTab={activeTab} onNavigate={navigate} />
+      <Header
+        activeTab={activeTab}
+        onNavigate={navigate}
+        onOpenLookup={() => setLookupOpen(true)}
+        largeText={largeText}
+        onToggleLargeText={() => setLargeText((v) => !v)}
+      />
 
       <main id="main" className="flex-1">
         {activeTab === 'home' && <HeroSection onNavigate={navigate} />}
@@ -58,6 +67,11 @@ function AppShell() {
       </main>
 
       <Footer onNavigate={navigate} />
+
+      <ReceiptLookupModal
+        isOpen={lookupOpen}
+        onClose={() => setLookupOpen(false)}
+      />
     </div>
   );
 }

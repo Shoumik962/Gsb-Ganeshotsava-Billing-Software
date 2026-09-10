@@ -3,6 +3,8 @@ import { rupees } from '../lib/format';
 import { temple } from '../data/temple';
 import { submitDonation, type DonorDetails } from '../lib/api';
 import { SectionHeading, OrnamentalDivider } from './Ornaments';
+import ReceiptView from './ReceiptView';
+import { saveBooking, type BookingRecord } from '../lib/bookingStore';
 
 /** Standard preset amounts on Indian donation sites. */
 const PRESETS = [101, 501, 1001, 5001];
@@ -22,8 +24,7 @@ export default function DonationForm() {
   const [donor, setDonor] = useState<DonorDetails>(EMPTY);
   const [errors, setErrors] = useState<{ amount?: string; name?: string; phone?: string }>({});
   const [submitting, setSubmitting] = useState(false);
-  const [receiptNo, setReceiptNo] = useState<string | null>(null);
-  const [paidAmount, setPaidAmount] = useState(0);
+  const [savedRecord, setSavedRecord] = useState<BookingRecord | null>(null);
 
   const amount = preset ?? (custom ? Number(custom) : 0);
 
@@ -61,8 +62,23 @@ export default function DonationForm() {
   const handlePay = async () => {
     setSubmitting(true);
     const result = await submitDonation({ amount, donor });
-    setPaidAmount(amount);
-    setReceiptNo(result.receiptNo);
+
+    const record: BookingRecord = {
+      id: result.receiptNo,
+      receiptNo: result.receiptNo,
+      type: 'donation',
+      createdAt: new Date().toISOString(),
+      devoteeName: donor.name,
+      phone: donor.phone,
+      email: donor.email,
+      pan: donor.pan,
+      total: amount,
+      status: 'Confirmed',
+      paymentMode: 'Online Payment (UPI/Card)',
+    };
+
+    saveBooking(record);
+    setSavedRecord(record);
     setSubmitting(false);
     setStage('done');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -73,46 +89,11 @@ export default function DonationForm() {
     setPreset(null);
     setCustom('');
     setDonor(EMPTY);
-    setReceiptNo(null);
+    setSavedRecord(null);
   };
 
-  if (stage === 'done' && receiptNo) {
-    return (
-      <div className="mx-auto max-w-2xl">
-        <div className="card p-6 text-center sm:p-10">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-maroon-50 text-maroon-800">
-            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <h2 className="mt-5 font-display text-3xl font-semibold text-maroon-900">
-            Thank You for Your Donation
-          </h2>
-          <p className="mt-2 text-base leading-relaxed text-maroon-800/80">
-            {temple.trustName} gratefully acknowledges your offering of{' '}
-            <strong className="text-maroon-900">{rupees(paidAmount)}</strong>.
-          </p>
-
-          <div className="mt-6 rounded-lg bg-cream-100 px-5 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold-700">
-              Receipt Number
-            </p>
-            <p className="mt-1 font-display text-2xl font-semibold text-maroon-900">{receiptNo}</p>
-          </div>
-
-          <p className="mt-6 text-sm leading-relaxed text-maroon-800/75">
-            A receipt has been sent to {donor.email || 'the contact details provided'}.
-            {donor.pan
-              ? ' Your 80G receipt will be issued against the PAN you provided.'
-              : ' For an 80G receipt, please share your PAN with the temple office.'}
-          </p>
-
-          <button onClick={reset} className="btn-secondary mt-7 w-full sm:w-auto">
-            Make Another Donation
-          </button>
-        </div>
-      </div>
-    );
+  if (stage === 'done' && savedRecord) {
+    return <ReceiptView record={savedRecord} onClose={reset} />;
   }
 
   return (

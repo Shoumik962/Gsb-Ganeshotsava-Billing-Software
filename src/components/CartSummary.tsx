@@ -17,16 +17,16 @@ export default function CartSummary({ onCheckout, variant = 'sidebar' }: CartSum
   const { items, total, removeFromCart, clearCart, count } = useCart();
 
   return (
-    <div className={variant === 'sidebar' ? 'card p-5' : 'p-5'}>
+    <div className={variant === 'sidebar' ? 'rounded-2xl border border-maroon-200/90 bg-white/95 backdrop-blur-md p-6 shadow-lift' : 'p-5'}>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 font-display text-xl font-semibold text-maroon-900">
+        <h3 className="flex items-center gap-2 font-display text-xl font-bold text-maroon-950">
           <LotusIcon className="h-5 w-5 text-gold-600" />
           Your Sevas
         </h3>
         {count > 0 && (
           <button
             onClick={clearCart}
-            className="text-sm font-medium text-maroon-700 underline underline-offset-2 hover:text-maroon-900"
+            className="text-xs font-semibold text-maroon-700 underline underline-offset-2 hover:text-maroon-950 transition-colors"
           >
             Clear all
           </button>
