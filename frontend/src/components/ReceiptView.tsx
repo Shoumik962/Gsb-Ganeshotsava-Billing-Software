@@ -1,6 +1,7 @@
 import { rupees } from '../lib/format';
 import { temple } from '../data/temple';
 import { DiyaIcon, LotusIcon } from './Ornaments';
+import heroDeityImage from '../assets/heroDeityImage.jpeg';
 import {
   WhatsAppIcon,
   MapPinIcon,
@@ -85,6 +86,21 @@ export default function ReceiptView({ record, onClose }: ReceiptViewProps) {
 
         {/* Temple Trust Crest Header */}
         <div className="border-b-2 border-maroon-100 pb-5 text-center">
+          {/* Sacred Deity Image for Screen & Print */}
+          <div className="mb-3 flex justify-center">
+            <div className="relative h-20 w-20 sm:h-24 sm:w-24 overflow-hidden rounded-full border-2 border-gold-500 shadow-md ring-2 ring-gold-200/80 bg-cream-50 print:border-maroon-800 print:shadow-none print:ring-0">
+              <img
+                src={heroDeityImage}
+                alt="Shree Ganpati Bappa"
+                className="h-full w-full object-cover object-[52%_25%]"
+                style={{
+                  printColorAdjust: 'exact',
+                  WebkitPrintColorAdjust: 'exact',
+                }}
+              />
+            </div>
+          </div>
+
           <div className="flex items-center justify-center gap-2 text-gold-700">
             <DiyaIcon className="h-5 w-5" />
             <span className="text-xs font-semibold uppercase tracking-[0.2em]">

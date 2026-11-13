@@ -24,12 +24,29 @@ function readTabFromHash(): TabId {
   return isTabId(hash) ? hash : 'home';
 }
 
+type SiteSettings = {
+  announcement: string;
+  hero_title: string;
+  booking_enabled: boolean;
+  donations_enabled: boolean;
+  contact_phone: string;
+  temple_image_url?: string;
+};
+
 function AppShell() {
   const [activeTab, setActiveTab] = useState<TabId>(readTabFromHash);
   const [largeText, setLargeText] = useState(false);
   const [lookupOpen, setLookupOpen] = useState(false);
-  const [site, setSite] = useState<{announcement:string;hero_title:string;booking_enabled:boolean;donations_enabled:boolean;contact_phone:string}|null>(null);
-  useEffect(() => {apiRequest<{announcement:string;hero_title:string;booking_enabled:boolean;donations_enabled:boolean;contact_phone:string}>('/api/site/settings').then(setSite).catch(()=>{});},[activeTab]);
+  const [site, setSite] = useState<SiteSettings | null>(null);
+
+  useEffect(() => {
+    const fetchSite = () => {
+      apiRequest<SiteSettings>('/api/site/settings').then(setSite).catch(() => {});
+    };
+    fetchSite();
+    window.addEventListener('ganesh:image-updated', fetchSite);
+    return () => window.removeEventListener('ganesh:image-updated', fetchSite);
+  }, [activeTab]);
 
   const navigate = (tab: TabId) => {
     setActiveTab(tab);
@@ -59,13 +76,29 @@ function AppShell() {
         onOpenLookup={() => setLookupOpen(true)}
         largeText={largeText}
         onToggleLargeText={() => setLargeText((v) => !v)}
+        templeImageUrl={site?.temple_image_url}
       />
 
-      {site?.announcement && <div className="bg-gold-100 px-4 py-2 text-center text-sm font-semibold text-maroon-900">{site.announcement} {site.contact_phone&&<span> · Contact: {site.contact_phone}</span>}</div>}
+      {site?.announcement && (
+        <div className="bg-gold-100 border-b border-gold-300">
+          <div className="container-page py-2 text-center text-xs sm:text-sm font-semibold text-maroon-900">
+            {site.announcement} {site.contact_phone&&<span> · Contact: {site.contact_phone}</span>}
+          </div>
+        </div>
+      )}
       {(activeTab === 'sevas' || activeTab === 'donate') && <PaymentModeNotice />}
 
       <main id="main" className="flex-1">
-        {activeTab === 'home' && <><div className="bg-cream-100 py-2 text-center font-bold text-maroon-950">{site?.hero_title}</div><HeroSection onNavigate={navigate} /></>}
+        {activeTab === 'home' && (
+          <>
+            {site?.hero_title && (
+              <div className="bg-cream-100 py-2 text-center font-bold text-maroon-950">
+                {site.hero_title}
+              </div>
+            )}
+            <HeroSection onNavigate={navigate} templeImageUrl={site?.temple_image_url} />
+          </>
+        )}
 
         {activeTab !== 'home' && (
           <div className="container-page py-10 sm:py-14">

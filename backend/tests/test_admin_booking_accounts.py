@@ -149,3 +149,24 @@ def test_verified_razorpay_test_seva_booking_creates_confirmed_booking(client,au
         assert db.query(PaymentOrder).first().status=='paid'
         assert db.query(Receipt).count()==1
     assert client.get('/api/account/bookings',headers=headers).json()[0]['receipt_no']==receipt['receiptNo']
+
+
+def test_admin_upload_image(client, auth):
+    from pathlib import Path
+    upload_dir = Path(__file__).resolve().parents[2] / 'frontend' / 'src' / 'assets'
+    files = {'file': ('test_deity.jpg', b'\xff\xd8\xff\xe0\x00\x10JFIFfakejpgdata', 'image/jpeg')}
+    res = client.post('/api/admin/upload-image', headers=auth, files=files, data={'set_as_hero': 'false'})
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body['storage'] == 'local'
+    assert body['url'].startswith('/assets/')
+    assert body['filename'].endswith('.jpg')
+
+    # Clean up test artifact
+    created_file = upload_dir / body['filename']
+    if created_file.exists():
+        created_file.unlink()
+
+    bad_files = {'file': ('script.exe', b'binarydata', 'application/octet-stream')}
+    bad_res = client.post('/api/admin/upload-image', headers=auth, files=bad_files)
+    assert bad_res.status_code == 422

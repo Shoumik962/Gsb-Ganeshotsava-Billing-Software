@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../lib/api';
+import heroDeityImage from '../assets/heroDeityImage.jpeg';
 import type { Seva } from '../data/sevas';
 
 type AdminSeva=Seva&{active:boolean};
-type Settings={announcement:string;hero_title:string;booking_enabled:boolean;donations_enabled:boolean;contact_phone:string};
+type Settings={announcement:string;hero_title:string;booking_enabled:boolean;donations_enabled:boolean;contact_phone:string;temple_image_url?:string};
 type Summary={registered_users:number;active_sevas:number;total_bookings:number;demo_bookings:number;verified_receipts:number};
 type AdminUser={id:string;username:string;role:string;email?:string;full_name?:string;active:boolean;email_verified:boolean};
 type Audit={id:string;actor_id:string;action:string;resource_type:string;resource_id:string;created_at:string};
 type Booking={id:string;name:string;phone:string;items:{name:string}[];amount:number;status:string;gateway_mode:string;receipt_no?:string};
 const defaults={id:'',name:'',price:101,category:'offerings',timing:'',note:'',exceptEkadashi:false,active:true};
-const emptySite:Settings={announcement:'',hero_title:'',booking_enabled:true,donations_enabled:true,contact_phone:''};
+const emptySite:Settings={announcement:'',hero_title:'',booking_enabled:true,donations_enabled:true,contact_phone:'',temple_image_url:''};
 const field='field-input w-full';
 const categories=[{value:'major',label:'Major Sevas'},{value:'pooja-naivedya',label:'Pooja & Naivedya'},{value:'offerings',label:'Offerings'}];
 export default function AdminPortal() {
@@ -23,6 +24,39 @@ export default function AdminPortal() {
   const [summary,setSummary]=useState<Summary|null>(null);
   const [users,setUsers]=useState<AdminUser[]>([]);const [bookings,setBookings]=useState<Booking[]>([]);const [audits,setAudits]=useState<Audit[]>([]);
   const [staffForm,setStaffForm]=useState({username:'',password:'',role:'sevadar',zone:''});
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string>('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [setAsHero, setSetAsHero] = useState(true);
+
+  async function uploadImageFile(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedFile) return;
+    setUploadingImage(true);
+    setError('');
+    setNotice('');
+    try {
+      const fd = new FormData();
+      fd.append('file', selectedFile);
+      fd.append('set_as_hero', String(setAsHero));
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/upload-image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Upload failed');
+      setNotice(`Deity image uploaded successfully! ${data.message}`);
+      setSelectedFile(null);
+      setFilePreview('');
+      await refresh();
+      window.dispatchEvent(new Event('ganesh:image-updated'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Image upload failed');
+    } finally {
+      setUploadingImage(false);
+    }
+  }
   const call=useCallback(<T,>(path:string,method='GET',data?:unknown):Promise<T>=>apiRequest<T>(path,{method,...(data!==undefined?{body:JSON.stringify(data)}:{})},token),[token]);
   const refresh=useCallback(async()=>{
     if (!token || !['super_admin','admin'].includes(role)) return;
@@ -67,13 +101,97 @@ export default function AdminPortal() {
       </form>
       <div className="card overflow-x-auto p-5"><h2 className="mb-3 text-xl font-bold">All Sevas ({sevas.length})</h2><table className="w-full text-left text-sm"><thead><tr><th>Name</th><th>Price</th><th>Available</th><th>Action</th></tr></thead><tbody>{sevas.map(s=><tr className="border-t" key={s.id}><td className="py-2 pr-3"><strong>{s.name}</strong><p className="text-xs">{s.id}</p></td><td>₹{s.price.toLocaleString('en-IN')}</td><td>{s.active?'Yes':'Disabled'}</td><td><button className="text-maroon-800 underline" onClick={()=>editSeva(s)}>Edit</button></td></tr>)}</tbody></table>{!sevas.length&&<p>No sevas yet. Create a dummy above or import the original catalogue.</p>}</div>
     </div>}
-    {tab==='website'&&<form onSubmit={e=>{e.preventDefault();void doAction(()=>call('/api/admin/site/settings','PATCH',site),'Website settings saved');}} className="card max-w-2xl space-y-4 p-6"><h2 className="text-xl font-bold">Website settings</h2>
-      <label className="block text-sm font-semibold">Public announcement<input className={field} value={site.announcement} maxLength={250} onChange={e=>setSite({...site,announcement:e.target.value})}/></label>
-      <label className="block text-sm font-semibold">Homepage headline<input className={field} value={site.hero_title} maxLength={150} onChange={e=>setSite({...site,hero_title:e.target.value})}/></label>
-      <label className="block text-sm font-semibold">Contact phone<input className={field} value={site.contact_phone} maxLength={30} onChange={e=>setSite({...site,contact_phone:e.target.value})}/></label>
-      <label className="flex gap-2 text-sm"><input type="checkbox" checked={site.booking_enabled} onChange={e=>setSite({...site,booking_enabled:e.target.checked})}/> Enable public seva bookings</label>
-      <label className="flex gap-2 text-sm"><input type="checkbox" checked={site.donations_enabled} onChange={e=>setSite({...site,donations_enabled:e.target.checked})}/> Enable donations</label>
-      <button disabled={busy} className="btn-primary">Save website settings</button><p className="text-xs">These settings cover the homepage notice, headline, contact details and booking switches. Full page/layout CMS and media uploads are not implemented yet.</p></form>}
+    {tab==='website'&&<div className="grid gap-6 lg:grid-cols-2">
+      <form onSubmit={e=>{e.preventDefault();void doAction(()=>call('/api/admin/site/settings','PATCH',site),'Website settings saved');}} className="card space-y-4 p-6"><h2 className="text-xl font-bold">Website Settings</h2>
+        <label className="block text-sm font-semibold">Public announcement<input className={field} value={site.announcement} maxLength={250} onChange={e=>setSite({...site,announcement:e.target.value})}/></label>
+        <label className="block text-sm font-semibold">Homepage headline<input className={field} value={site.hero_title} maxLength={150} onChange={e=>setSite({...site,hero_title:e.target.value})}/></label>
+        <label className="block text-sm font-semibold">Contact phone<input className={field} value={site.contact_phone} maxLength={30} onChange={e=>setSite({...site,contact_phone:e.target.value})}/></label>
+        <label className="flex gap-2 text-sm"><input type="checkbox" checked={site.booking_enabled} onChange={e=>setSite({...site,booking_enabled:e.target.checked})}/> Enable public seva bookings</label>
+        <label className="flex gap-2 text-sm"><input type="checkbox" checked={site.donations_enabled} onChange={e=>setSite({...site,donations_enabled:e.target.checked})}/> Enable donations</label>
+        <button disabled={busy} className="btn-primary">Save website settings</button>
+      </form>
+
+      {/* Deity Image Upload & Management Card */}
+      <form onSubmit={uploadImageFile} className="card space-y-4 p-6">
+        <h2 className="text-xl font-bold">Temple Idol & Hero Image</h2>
+        <p className="text-xs text-maroon-800/80 leading-relaxed">
+          Upload the Shree Ganpati idol photograph. This image is displayed in the hero banner, navigation crest, and official receipt PDF.
+        </p>
+
+        {/* Current Image Preview */}
+        <div className="flex items-center gap-4 rounded-xl border border-gold-300/60 bg-cream-50 p-3">
+          <div className="relative h-16 w-16 overflow-hidden rounded-full border-2 border-gold-400 bg-cream-100 shadow-sm shrink-0">
+            <img
+              src={filePreview || (site.temple_image_url ? (site.temple_image_url.startsWith('http') ? site.temple_image_url : `${import.meta.env.VITE_API_URL || ''}${site.temple_image_url}`) : heroDeityImage)}
+              alt="Current Deity Idol"
+              className="h-full w-full object-cover object-[52%_25%]"
+            />
+          </div>
+          <div className="text-xs space-y-0.5 min-w-0">
+            <p className="font-semibold text-maroon-950 truncate">
+              {filePreview ? 'New Image Preview' : site.temple_image_url ? 'Active Custom Image' : 'Default Temple Image'}
+            </p>
+            <p className="text-maroon-800/70 truncate">
+              {filePreview ? selectedFile?.name : site.temple_image_url || 'frontend/src/assets/heroDeityImage.jpeg'}
+            </p>
+            <span className="inline-block text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-gold-200/80 text-maroon-950 border border-gold-300">
+              {site.temple_image_url?.startsWith('http') ? 'AWS S3 Storage' : 'Local Asset Storage'}
+            </span>
+          </div>
+        </div>
+
+        {/* File Chooser */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-maroon-900 mb-1.5">
+            Choose Image (JPG, PNG, WEBP — Max 10MB)
+          </label>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setSelectedFile(file);
+              setFilePreview(URL.createObjectURL(file));
+            }}
+            className="block w-full text-xs text-maroon-800 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border file:border-gold-400 file:bg-cream-100 file:text-maroon-950 file:font-semibold hover:file:bg-gold-100 transition-colors"
+          />
+        </div>
+
+        <label className="flex items-center gap-2 text-xs font-medium text-maroon-900">
+          <input
+            type="checkbox"
+            checked={setAsHero}
+            onChange={(e) => setSetAsHero(e.target.checked)}
+            className="rounded border-maroon-300 text-maroon-800 focus:ring-maroon-700"
+          />
+          <span>Set as primary deity image across homepage & receipts</span>
+        </label>
+
+        <div className="pt-1 flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={!selectedFile || uploadingImage}
+            className="btn-primary text-sm py-2.5 px-5 disabled:opacity-40"
+          >
+            {uploadingImage ? 'Uploading Image…' : 'Upload Deity Image'}
+          </button>
+          {selectedFile && (
+            <button
+              type="button"
+              onClick={() => { setSelectedFile(null); setFilePreview(''); }}
+              className="btn-secondary text-sm py-2.5 px-4"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        <p className="text-[11px] text-maroon-800/60 leading-relaxed border-t border-maroon-100 pt-3">
+          <strong>Storage Architecture:</strong> In development, files are saved to <code>frontend/src/assets/</code>. In production, files upload directly to AWS S3 bucket when <code>AWS_S3_BUCKET</code> is configured.
+        </p>
+      </form>
+    </div>}
     {tab==='users'&&<div className="space-y-5"><div className="card overflow-auto p-5"><h2 className="mb-3 text-xl font-bold">Registered users ({users.length})</h2><table className="w-full text-left text-sm"><thead><tr><th>Username</th><th>Role</th><th>Email</th><th>Status</th><th>Action</th></tr></thead><tbody>{users.map(u=><tr key={u.id} className="border-t"><td className="py-2">{u.username}</td><td>{u.role}</td><td>{u.email||'—'}</td><td>{u.active?'Active':'Inactive'}</td><td>{role==='super_admin'&&u.role!=='super_admin'&&<button className="underline" disabled={busy} onClick={()=>void doAction(()=>call(`/api/admin/users/${u.id}/status`,'PATCH',{active:!u.active}),'User status updated')}>{u.active?'Deactivate':'Activate'}</button>}</td></tr>)}</tbody></table></div>
       {role==='super_admin'&&<form className="card max-w-xl space-y-3 p-5" onSubmit={e=>{e.preventDefault();void doAction(()=>call('/api/admin/users','POST',staffForm),'Staff user created');}}><h2 className="text-xl font-bold">Create Admin / Sevadar</h2><label className="block">Username<input className={field} required value={staffForm.username} onChange={e=>setStaffForm({...staffForm,username:e.target.value})}/></label><label className="block">Password (12+ characters)<input className={field} type="password" minLength={12} required value={staffForm.password} onChange={e=>setStaffForm({...staffForm,password:e.target.value})}/></label><label className="block">Role<select className={field} value={staffForm.role} onChange={e=>setStaffForm({...staffForm,role:e.target.value})}><option value="sevadar">Sevadar</option><option value="admin">Admin</option></select></label><label className="block">Sevadar zone<input className={field} value={staffForm.zone} onChange={e=>setStaffForm({...staffForm,zone:e.target.value})}/></label><button disabled={busy} className="btn-primary">Create staff user</button></form>}
     </div>}

@@ -114,6 +114,7 @@ pnpm-debug.log*
 /backend/local_data/
 /frontend/public/uploads/
 /frontend/public/receipts/
+/frontend/src/assets/upload_*
 
 # --- Editor, operating system and temporary files ---
 .vscode/

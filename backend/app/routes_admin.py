@@ -1,13 +1,20 @@
 """Governed administrative APIs. No public write access to website, seva or users."""
 from __future__ import annotations
+import os
 import re
-from fastapi import APIRouter, Depends, HTTPException
+import uuid
+import logging
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from .database import get_db
 from .models import AdminAudit, PaymentOrder, Receipt, SevaBooking, SevaMaster, User, WebsiteSetting, utcnow
 from .security import require_roles
+
+logger = logging.getLogger(__name__)
+UPLOAD_DIR = Path(__file__).resolve().parents[2] / "frontend" / "src" / "assets"
 
 router = APIRouter(prefix='/api', tags=['admin portal & seva management'])
 admin = require_roles('super_admin','admin')
@@ -18,6 +25,7 @@ DEFAULT_SITE = {
     'booking_enabled': True,
     'donations_enabled': True,
     'contact_phone': '',
+    'temple_image_url': '',
 }
 
 class SevaCreate(BaseModel):
@@ -48,6 +56,7 @@ class SiteUpdate(BaseModel):
     booking_enabled: bool | None = None
     donations_enabled: bool | None = None
     contact_phone: str | None = Field(default=None,max_length=30)
+    temple_image_url: str | None = Field(default=None,max_length=500)
 
 class ToggleUser(BaseModel):
     active: bool
@@ -82,6 +91,92 @@ def change_site(payload:SiteUpdate, db:Session=Depends(get_db), user:User=Depend
         audit(db,user,'site_settings.update','site_settings',key,prev,{'value':value})
     db.commit()
     return settings(db)
+
+@router.post('/admin/upload-image', status_code=200)
+async def upload_image(
+    file: UploadFile = File(...),
+    set_as_hero: bool = Form(True),
+    db: Session = Depends(get_db),
+    user: User = Depends(admin),
+):
+    """
+    Upload temple deity image.
+    In local development: saves to frontend/src/assets/ and updates heroDeityImage.jpeg.
+    In production: uploads to AWS S3 bucket if AWS_S3_BUCKET is configured.
+    """
+    allowed_exts = {'.jpg', '.jpeg', '.png', '.webp'}
+    ext = Path(file.filename or '').suffix.lower()
+    if ext not in allowed_exts:
+        raise HTTPException(422, f'Invalid file format ({ext}). Allowed formats: JPG, JPEG, PNG, WEBP')
+
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(422, 'File size exceeds maximum limit of 10MB')
+
+    s3_bucket = os.getenv('AWS_S3_BUCKET')
+    s3_uploaded = False
+    image_url = ''
+    filename = f"upload_{uuid.uuid4().hex[:8]}{ext}"
+
+    # AWS S3 Upload Logic
+    if s3_bucket:
+        try:
+            import boto3
+            region = os.getenv('AWS_REGION', 'ap-south-1')
+            s3_client = boto3.client(
+                's3',
+                region_name=region,
+                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+            )
+            s3_key = f"assets/{filename}"
+            s3_client.put_object(
+                Bucket=s3_bucket,
+                Key=s3_key,
+                Body=content,
+                ContentType=file.content_type or 'image/jpeg',
+            )
+            image_url = f"https://{s3_bucket}.s3.{region}.amazonaws.com/{s3_key}"
+            s3_uploaded = True
+            logger.info("Successfully uploaded image %s to S3 bucket %s", filename, s3_bucket)
+        except Exception as err:
+            logger.warning("AWS S3 upload attempt failed (%s). Falling back to local storage.", err)
+
+    # Local development storage: saves to frontend/src/assets/
+    if not s3_uploaded:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        dest = UPLOAD_DIR / filename
+        dest.write_bytes(content)
+        image_url = f"/assets/{filename}"
+
+        # If set_as_hero is True, also update heroDeityImage.jpeg so all bundled frontend assets pick it up
+        if set_as_hero:
+            hero_dest = UPLOAD_DIR / "heroDeityImage.jpeg"
+            try:
+                hero_dest.write_bytes(content)
+            except Exception as e:
+                logger.warning("Could not overwrite heroDeityImage.jpeg: %s", e)
+
+    # Persist the image URL in website settings
+    old = db.get(WebsiteSetting, 'temple_image_url')
+    prev = old.value if old else None
+    if old:
+        old.value = {'value': image_url}
+        old.updated_by_id = user.id
+        old.updated_at = utcnow()
+    else:
+        db.add(WebsiteSetting(key='temple_image_url', value={'value': image_url}, updated_by_id=user.id))
+
+    audit(db, user, 'image.upload', 'assets', filename, prev, {'value': image_url, 'storage': 's3' if s3_uploaded else 'local'})
+    db.commit()
+
+    return {
+        'filename': filename,
+        'url': image_url,
+        'storage': 's3' if s3_uploaded else 'local',
+        'set_as_hero': set_as_hero,
+        'message': f'Image saved successfully to {"AWS S3" if s3_uploaded else "local assets (frontend/src/assets)"}',
+    }
 
 @router.get('/sevas')
 def catalog(db:Session=Depends(get_db)):
