@@ -1,5 +1,135 @@
-node_modules
-dist
-*.local
+# Ganeshotsav Billing — GitHub source-control hygiene
+# Commit APPLICATION SOURCE, migrations, reproducible QA scripts, package-lock.json,
+# requirements*.txt and *.env.example. Never commit local runtime state or real records.
+
+# --- Credentials, environment-specific configuration and certificates ---
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+.envrc
+.npmrc
+!.npmrc.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.p8
+*.jks
+*.keystore
+credentials.json
+service-account*.json
+secrets.json
+secrets/
+
+# --- Python virtual environments and install/build output ---
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+wheels/
+pip-wheel-metadata/
+.python-version
+
+# --- Python test, lint and type-check caches/reports ---
+.pytest_cache/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+.tox/
+.nox/
+.hypothesis/
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+.pytest_results/
+
+# --- Node/Vite, package stores and compiled frontend ---
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/cache/
+.yarn/unplugged/
+.vite/
+.next/
+.nuxt/
+.svelte-kit/
+*.tsbuildinfo
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Local PostgreSQL dumps, SQLite databases and binary backups ---
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.db
+*.db-journal
+*.dump
+*.backup
+*.pgdump
+*.sql.gz
+*.db3
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.parquet
+*.jsonl
+*.ndjson
+*.tar.gz
+*.zip
+*.7z
+
+# --- Generated/real user data; do not commit devotees, locations or receipts ---
+/data/
+/backend/data/
+/logs/
+/uploads/
+/receipts/
+/exports/
+/backups/
+/generated/
+/local_data/
+/qa-output/
+/test-output/
+/test-results/
+/playwright-report/
+/backend/uploads/
+/backend/receipts/
+/backend/exports/
+/backend/backups/
+/backend/generated/
+/backend/local_data/
+/frontend/public/uploads/
+/frontend/public/receipts/
+
+# --- Editor, operating system and temporary files ---
+.vscode/
+.idea/
+.history/
 .DS_Store
-tsconfig.tsbuildinfo
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+.cache/
+.tmp/
+/tmp/
+
+# Important tracked files (not ignored):
+# backend/alembic/versions/*.py, backend/app/sevas.json,
+# backend/requirements.txt, backend/requirements-dev.txt,
+# frontend/package-lock.json, .github/workflows/*.yml, docs/, architecture/.

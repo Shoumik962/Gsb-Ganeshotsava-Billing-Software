@@ -1,0 +1,199 @@
+[
+  {
+    "id": "sampoorna-ganeshotsava",
+    "name": "Sampoorna Ganeshotsava Seva",
+    "category": "major",
+    "price": 700000,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "vishesh-seva",
+    "name": "Vishesh Seva",
+    "category": "major",
+    "price": 300000,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "anna-dana-seva",
+    "name": "Anna Dana Seva",
+    "category": "major",
+    "price": 200000,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "udayasthaman-seva",
+    "name": "Udayasthaman Seva",
+    "category": "major",
+    "price": 125000,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "sarva-seva",
+    "name": "Sarva Seva",
+    "category": "major",
+    "price": 50000,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "full-day-seva",
+    "name": "Full Day Seva",
+    "category": "major",
+    "price": 30000,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "maha-anna-santarpana",
+    "name": "Maha Anna Santarpana Seva",
+    "category": "major",
+    "timing": "1:00 p.m.",
+    "price": 15000,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "anna-santarpana",
+    "name": "Anna Santarpana Seva",
+    "category": "major",
+    "timing": "1:00 p.m.",
+    "price": 10000,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "mooda-ganapati-pooja",
+    "name": "Mooda Ganapati Pooja",
+    "category": "pooja-naivedya",
+    "timing": "10:30 a.m. (individual batch)",
+    "price": 15000,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "mooda-ganapati-samoohik",
+    "name": "Mooda Ganapati Pooja (Samoohik)",
+    "category": "pooja-naivedya",
+    "timing": "8:30 a.m.",
+    "price": 7500,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "mahapooja-madhyanha",
+    "name": "Mahapooja (Madhyanha)",
+    "category": "pooja-naivedya",
+    "timing": "1:00 p.m.",
+    "price": 2500
+  },
+  {
+    "id": "ganahoma",
+    "name": "Ganahoma",
+    "category": "pooja-naivedya",
+    "timing": "7:00, 8:00, 9:00, 10:00 & 11:00 a.m.",
+    "note": "Last batch starts at 11:00 a.m.",
+    "price": 3000,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "ranga-pooja",
+    "name": "Ranga Pooja",
+    "category": "pooja-naivedya",
+    "timing": "6:30 p.m.",
+    "price": 1500,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "pushpa-pooja",
+    "name": "Pushpa Pooja",
+    "category": "pooja-naivedya",
+    "timing": "7:00 p.m.",
+    "price": 1000
+  },
+  {
+    "id": "ratri-pooja",
+    "name": "Ratri Pooja",
+    "category": "pooja-naivedya",
+    "timing": "9:00 p.m.",
+    "price": 1000
+  },
+  {
+    "id": "atharvashirsha-parayan",
+    "name": "Ganapati Atharvashirsha Parayan",
+    "category": "pooja-naivedya",
+    "timing": "5:00 p.m.",
+    "note": "Sankalp at 5:00 p.m.",
+    "price": 1100
+  },
+  {
+    "id": "apoopa-naivedya",
+    "name": "Apoopa Naivedya",
+    "category": "pooja-naivedya",
+    "timing": "1:00 p.m.",
+    "price": 2500,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "modaka-naivedya",
+    "name": "Modaka Naivedya",
+    "category": "pooja-naivedya",
+    "timing": "1:00 p.m.",
+    "price": 2500,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "panchakhadya-naivedya",
+    "name": "Panchakhadya Naivedya",
+    "category": "pooja-naivedya",
+    "price": 500,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "suvarna-arpan",
+    "name": "Suvarna Arpan Seva",
+    "category": "offerings",
+    "note": "1 gm gold",
+    "price": 11000
+  },
+  {
+    "id": "raupya-arpan",
+    "name": "Raupya Arpan Seva",
+    "category": "offerings",
+    "note": "50 gms silver",
+    "price": 7500
+  },
+  {
+    "id": "sarvalankar-seva",
+    "name": "Sarvalankar Seva",
+    "category": "offerings",
+    "price": 5000
+  },
+  {
+    "id": "suvarna-durva-arpan",
+    "name": "Suvarna Durva Arpan Seva",
+    "category": "offerings",
+    "price": 5000
+  },
+  {
+    "id": "tulabhar-kanuka",
+    "name": "Tulabhar (Kanuka)",
+    "category": "offerings",
+    "timing": "9:30 a.m.–12:30 p.m. & 4:00–6:00 p.m.",
+    "note": "Material cost not included",
+    "price": 500,
+    "exceptEkadashi": true
+  },
+  {
+    "id": "deeparadhana-seva",
+    "name": "Deeparadhana Seva",
+    "category": "offerings",
+    "timing": "6:30 p.m.",
+    "price": 500
+  },
+  {
+    "id": "doorvarpan-seva",
+    "name": "Doorvarpan Seva",
+    "category": "offerings",
+    "price": 500
+  },
+  {
+    "id": "prasad-seva",
+    "name": "Prasad Seva",
+    "category": "offerings",
+    "price": 1000
+  }
+]
