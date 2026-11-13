@@ -80,19 +80,23 @@ function AppShell() {
       />
 
       {site?.announcement && (
-        <div className="bg-gold-100 border-b border-gold-300">
+        <div className="bg-gold-100 border-b border-gold-300 print:hidden">
           <div className="container-page py-2 text-center text-xs sm:text-sm font-semibold text-maroon-900">
             {site.announcement} {site.contact_phone&&<span> · Contact: {site.contact_phone}</span>}
           </div>
         </div>
       )}
-      {(activeTab === 'sevas' || activeTab === 'donate') && <PaymentModeNotice />}
+      {(activeTab === 'sevas' || activeTab === 'donate') && (
+        <div className="print:hidden">
+          <PaymentModeNotice />
+        </div>
+      )}
 
-      <main id="main" className="flex-1">
+      <main id="main" className="flex-1 print:p-0 print:m-0">
         {activeTab === 'home' && (
           <>
             {site?.hero_title && (
-              <div className="bg-cream-100 py-2 text-center font-bold text-maroon-950">
+              <div className="bg-cream-100 py-2 text-center font-bold text-maroon-950 print:hidden">
                 {site.hero_title}
               </div>
             )}
@@ -101,7 +105,7 @@ function AppShell() {
         )}
 
         {activeTab !== 'home' && (
-          <div className="container-page py-10 sm:py-14">
+          <div className="container-page py-10 sm:py-14 print:p-0 print:m-0 print:max-w-none">
             {activeTab === 'sevas' && (site?.booking_enabled===false ? <div className="card p-6">Seva booking is temporarily unavailable.</div> : <SevaSection />)}
             {activeTab === 'donate' && (site?.donations_enabled===false ? <div className="card p-6">Donations are temporarily unavailable.</div> : <DonationForm />)}
             {activeTab === 'about' && <AboutSection />}

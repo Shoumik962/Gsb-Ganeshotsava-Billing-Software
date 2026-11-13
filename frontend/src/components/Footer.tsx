@@ -4,9 +4,9 @@ import { ZapIcon, CardIcon, LockIcon, CertificateIcon, PhoneIcon, InstagramIcon,
 import type { TabId } from '../types';
 
 export default function Footer({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
-  const instagramUrl = import.meta.env.VITE_INSTAGRAM_URL || 'https://www.instagram.com/gsbganeshotsav_wadala';
-  const youtubeUrl = import.meta.env.VITE_YOUTUBE_URL || 'https://www.youtube.com/@gsbganeshotsav_wadala';
-  const facebookUrl = import.meta.env.VITE_FACEBOOK_URL || 'https://www.facebook.com/gsbganeshotsavwadala';
+  const instagramUrl = import.meta.env.VITE_INSTAGRAM_URL || 'https://www.instagram.com/gsbsarvajanikganeshotsava';
+  const youtubeUrl = import.meta.env.VITE_YOUTUBE_URL || 'https://www.youtube.com/gsbsarvajanikganeshotsava';
+  const facebookUrl = import.meta.env.VITE_FACEBOOK_URL || 'https://www.facebook.com/gsbsarvajanikganeshotsava';
 
   return (
     <footer className="mt-20 border-t border-maroon-100 bg-maroon-950 text-cream-200">
