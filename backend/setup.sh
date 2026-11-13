@@ -2,10 +2,16 @@
 # Run: bash backend/setup.sh  (from repository root)
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
-PYTHON_BIN="${PYTHON:-python3.11}"
-if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-  echo "ERROR: $PYTHON_BIN not found; install Python 3.11 or export PYTHON=/path/to/python3.11" >&2
-  exit 1
+PYTHON_BIN="${PYTHON:-}"
+if [[ -z "$PYTHON_BIN" ]]; then
+  if command -v python3.11 >/dev/null 2>&1; then
+    PYTHON_BIN="python3.11"
+  elif command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="python3"
+  else
+    echo "ERROR: python3 not found; install Python 3.11 or export PYTHON=/path/to/python" >&2
+    exit 1
+  fi
 fi
 if [[ ! -x .venv/bin/python ]]; then
   "$PYTHON_BIN" -m venv .venv

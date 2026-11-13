@@ -5,8 +5,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND="$ROOT/backend"
 PY="$BACKEND/.venv/bin/python"
 if [[ ! -x "$PY" ]]; then
-  echo 'No virtual environment found. Creating Python 3.11 venv...'
-  python3.11 -m venv "$BACKEND/.venv"
+  echo 'No virtual environment found. Creating Python venv...'
+  PYTHON_CMD="python3.11"
+  command -v python3.11 >/dev/null 2>&1 || PYTHON_CMD="python3"
+  "$PYTHON_CMD" -m venv "$BACKEND/.venv"
 fi
 "$PY" -m pip install -r "$BACKEND/requirements-dev.txt"
 "$PY" -m pip check

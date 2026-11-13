@@ -131,39 +131,44 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <button
-        onClick={() => (stage === 'review' ? setStage('details') : onBack())}
-        className="mb-5 inline-flex items-center gap-1.5 text-sm font-semibold text-maroon-800 hover:text-maroon-950"
-      >
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
-          <path d="M14 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        {stage === 'review' ? 'Edit details' : 'Back to seva list'}
-      </button>
+    <div className="mx-auto max-w-5xl">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <button
+          onClick={() => (stage === 'review' ? setStage('details') : onBack())}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-maroon-800 hover:text-maroon-950 transition-colors"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+            <path d="M14 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {stage === 'review' ? 'Edit details' : 'Back to seva list'}
+        </button>
 
-      {/* Two visible steps */}
-      <ol className="mb-7 flex items-center gap-3 text-sm font-medium" aria-label="Checkout progress">
-        {(['details', 'review'] as const).map((s, i) => (
-          <li key={s} className="flex items-center gap-3">
-            <span
-              className={`flex items-center gap-2 ${
-                stage === s ? 'text-maroon-900 font-bold' : 'text-maroon-800/50'
-              }`}
-            >
+        {/* Two visible steps */}
+        <ol className="flex items-center gap-3 text-sm font-medium" aria-label="Checkout progress">
+          {(['details', 'review'] as const).map((s, i) => (
+            <li key={s} className="flex items-center gap-3">
               <span
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
-                  stage === s ? 'bg-maroon-800 text-cream-50 shadow-xs' : 'bg-maroon-100 text-maroon-700'
+                className={`flex items-center gap-2 ${
+                  stage === s ? 'text-maroon-900 font-bold' : 'text-maroon-800/50'
                 }`}
               >
-                {i + 1}
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                    stage === s ? 'bg-maroon-800 text-cream-50 shadow-xs' : 'bg-maroon-100 text-maroon-700'
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                {s === 'details' ? 'Your details' : 'Review & pay'}
               </span>
-              {s === 'details' ? 'Your details' : 'Review & pay'}
-            </span>
-            {i === 0 && <span className="h-px w-6 bg-maroon-200" aria-hidden="true" />}
-          </li>
-        ))}
-      </ol>
+              {i === 0 && <span className="h-px w-6 bg-maroon-200" aria-hidden="true" />}
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[1fr_340px] lg:items-start">
+        <div className="min-w-0">
 
       {stage === 'details' ? (
         <form onSubmit={goToReview} className="card p-5 sm:p-7" noValidate>
@@ -495,6 +500,42 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
           </button>
         </div>
       )}
+        </div>
+
+        {/* Right side summary */}
+        <aside className="space-y-4 lg:sticky lg:top-28">
+          <div className="card p-5 space-y-4">
+            <h3 className="font-display text-lg font-bold text-maroon-950 border-b border-maroon-100 pb-2 flex items-center justify-between">
+              <span>Seva Order Summary</span>
+              <span className="rounded-full bg-gold-200 px-2 py-0.5 text-xs font-bold text-maroon-900">{count} {count === 1 ? 'Seva' : 'Sevas'}</span>
+            </h3>
+            <ul className="divide-y divide-maroon-100 text-sm max-h-72 overflow-y-auto space-y-2">
+              {items.map(s => (
+                <li key={s.id} className="pt-2 flex justify-between gap-2 items-start">
+                  <div>
+                    <p className="font-semibold text-maroon-900">{s.name}</p>
+                    {s.timing && <p className="text-xs text-maroon-700/70">{s.timing}</p>}
+                  </div>
+                  <span className="font-bold text-maroon-900 shrink-0">{rupees(s.price)}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="border-t-2 border-maroon-100 pt-3 flex justify-between items-baseline">
+              <span className="font-bold text-maroon-900">Total Amount</span>
+              <span className="font-display text-2xl font-bold text-maroon-950">{rupees(total)}</span>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-gold-300/60 bg-gold-50/50 p-4 text-xs text-maroon-900/80 space-y-2">
+            <p className="font-bold text-maroon-950">
+              Dwarkanath Bhavan, Wadala
+            </p>
+            <p className="leading-relaxed">
+              Official e-receipt is generated upon completion. No extra transaction or platform fee is charged.
+            </p>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

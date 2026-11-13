@@ -1,9 +1,13 @@
 import { temple } from '../data/temple';
 import { OrnamentalDivider } from './Ornaments';
-import { ZapIcon, CardIcon, LockIcon, CertificateIcon, PhoneIcon } from './Icons';
+import { ZapIcon, CardIcon, LockIcon, CertificateIcon, PhoneIcon, InstagramIcon, YouTubeIcon, FacebookIcon } from './Icons';
 import type { TabId } from '../types';
 
 export default function Footer({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
+  const instagramUrl = import.meta.env.VITE_INSTAGRAM_URL || 'https://www.instagram.com/gsbganeshotsav_wadala';
+  const youtubeUrl = import.meta.env.VITE_YOUTUBE_URL || 'https://www.youtube.com/@gsbganeshotsav_wadala';
+  const facebookUrl = import.meta.env.VITE_FACEBOOK_URL || 'https://www.facebook.com/gsbganeshotsavwadala';
+
   return (
     <footer className="mt-20 border-t border-maroon-100 bg-maroon-950 text-cream-200">
       <div className="container-page py-12">
@@ -14,6 +18,51 @@ export default function Footer({ onNavigate }: { onNavigate: (tab: TabId) => voi
             <h3 className="font-display text-xl font-semibold text-cream-50">{temple.name}</h3>
             <p className="mt-2 text-sm leading-relaxed text-cream-200/70">{temple.trustName}</p>
             <p className="mt-1 text-xs text-cream-200/50">{temple.registration}</p>
+
+            {/* Social Media Links */}
+            <div className="mt-5">
+              <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-gold-300">
+                Connect With Us
+              </span>
+              <div className="mt-2.5 flex items-center gap-2.5">
+                {instagramUrl && (
+                  <a
+                    href={instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-maroon-800 bg-maroon-900/80 text-cream-200 hover:border-gold-400 hover:bg-gold-500/20 hover:text-gold-300 transition-all hover:scale-105"
+                    aria-label="Instagram"
+                    title="Follow on Instagram"
+                  >
+                    <InstagramIcon className="h-4 w-4" />
+                  </a>
+                )}
+                {youtubeUrl && (
+                  <a
+                    href={youtubeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-maroon-800 bg-maroon-900/80 text-cream-200 hover:border-gold-400 hover:bg-gold-500/20 hover:text-gold-300 transition-all hover:scale-105"
+                    aria-label="YouTube"
+                    title="Subscribe on YouTube"
+                  >
+                    <YouTubeIcon className="h-4 w-4" />
+                  </a>
+                )}
+                {facebookUrl && (
+                  <a
+                    href={facebookUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-maroon-800 bg-maroon-900/80 text-cream-200 hover:border-gold-400 hover:bg-gold-500/20 hover:text-gold-300 transition-all hover:scale-105"
+                    aria-label="Facebook"
+                    title="Connect on Facebook"
+                  >
+                    <FacebookIcon className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
 
           <div>
@@ -105,10 +154,27 @@ export default function Footer({ onNavigate }: { onNavigate: (tab: TabId) => voi
           </p>
         </div>
 
-        <div className="mt-8 flex flex-col gap-2 border-t border-cream-200/10 pt-6 text-xs text-cream-200/50 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-8 flex flex-col gap-3 border-t border-cream-200/10 pt-6 text-xs text-cream-200/50 sm:flex-row sm:items-center sm:justify-between">
           <p>
             © {new Date().getFullYear()} {temple.trustName}. All rights reserved.
           </p>
+          <div className="flex items-center gap-4 text-cream-200/70 font-medium">
+            {instagramUrl && (
+              <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gold-300 transition-colors">
+                Instagram
+              </a>
+            )}
+            {youtubeUrl && (
+              <a href={youtubeUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gold-300 transition-colors">
+                YouTube
+              </a>
+            )}
+            {facebookUrl && (
+              <a href={facebookUrl} target="_blank" rel="noopener noreferrer" className="hover:text-gold-300 transition-colors">
+                Facebook
+              </a>
+            )}
+          </div>
           <p>{temple.officeHours}</p>
         </div>
       </div>

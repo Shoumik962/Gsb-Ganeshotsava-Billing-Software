@@ -5,7 +5,17 @@ import { ZapIcon, CertificateIcon } from './Icons';
 import heroDeityImage from '../assets/heroDeityImage.jpeg';
 import type { TabId } from '../types';
 
-export default function HeroSection({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
+export default function HeroSection({
+  onNavigate,
+  templeImageUrl,
+}: {
+  onNavigate: (tab: TabId) => void;
+  templeImageUrl?: string;
+}) {
+  const deitySrc = templeImageUrl
+    ? (templeImageUrl.startsWith('http') ? templeImageUrl : `${import.meta.env.VITE_API_URL || ''}${templeImageUrl}`)
+    : heroDeityImage;
+
   return (
     <section className="relative isolate overflow-hidden">
       {/* Cream ground the image dissolves into at its edges. */}
@@ -15,9 +25,9 @@ export default function HeroSection({ onNavigate }: { onNavigate: (tab: TabId) =
         Ganpati Bappa, filling the section edge to edge.
         Feathered on every edge so it dissolves seamlessly into the cream background.
       */}
-      <div className="absolute inset-0 hidden lg:block lg:left-[44%]" aria-hidden="true">
+      <div className="absolute inset-0 hidden lg:block lg:left-[42%] xl:left-[45%] 2xl:left-[48%]" aria-hidden="true">
         <img
-          src={heroDeityImage}
+          src={deitySrc}
           alt="Shree Ganpati Bappa"
           className="h-full w-full object-cover object-[52%_25%]"
           style={{
@@ -28,17 +38,17 @@ export default function HeroSection({ onNavigate }: { onNavigate: (tab: TabId) =
           }}
         />
         {/* Feather the inner (left) edge into the copy column. */}
-        <div className="absolute inset-y-0 left-0 w-48 bg-gradient-to-r from-cream-100 via-cream-100/70 to-transparent" />
+        <div className="absolute inset-y-0 left-0 w-48 xl:w-64 bg-gradient-to-r from-cream-100 via-cream-100/70 to-transparent" />
         {/* Soften the top and bottom seams into the header and next section. */}
         <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-cream-100 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-cream-100 to-transparent" />
       </div>
 
-      <div className="container-page relative pb-14 pt-6 sm:pb-16 lg:py-20">
+      <div className="container-page relative pb-14 pt-6 sm:pb-16 lg:py-16 xl:py-20">
         {/* Mobile: Deity image full-width block above the copy */}
-        <div className="relative -mx-5 mb-6 sm:-mx-6 lg:hidden">
+        <div className="relative -mx-4 mb-6 sm:-mx-6 lg:hidden">
           <img
-            src={heroDeityImage}
+            src={deitySrc}
             alt="Shree Ganpati Bappa"
             className="h-[44vh] max-h-[24rem] min-h-[16rem] w-full object-cover object-[50%_25%]"
             style={{
@@ -51,52 +61,57 @@ export default function HeroSection({ onNavigate }: { onNavigate: (tab: TabId) =
           <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-cream-100 to-transparent" />
         </div>
 
-        {/* Copy Column */}
-        <div className="max-w-xl animate-fade-up text-center lg:max-w-[32rem] lg:text-left">
-          <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5">
-            <div className="inline-flex items-center gap-2 rounded-full border border-gold-400/80 bg-gradient-to-r from-cream-50 via-white to-gold-50/60 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-gold-900 shadow-sm backdrop-blur-sm">
-              <DiyaIcon className="h-4 w-4 text-gold-600 animate-pulse" />
-              <span>{temple.festival} · Devotee Services</span>
+        {/* Desktop Hero Layout: Copy on Left with Generous Responsive Width */}
+        <div className="grid lg:grid-cols-12 lg:gap-8 xl:gap-12 items-center">
+          <div className="lg:col-span-7 xl:col-span-6 2xl:col-span-6 animate-fade-up text-center lg:text-left">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-gold-400/80 bg-gradient-to-r from-cream-50 via-white to-gold-50/60 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-gold-900 shadow-sm backdrop-blur-sm">
+                <DiyaIcon className="h-4 w-4 text-gold-600 animate-pulse" />
+                <span>{temple.festival} · Devotee Services</span>
+              </div>
+            </div>
+
+            <h1 className="mt-4 font-display text-4xl font-bold tracking-tight text-maroon-950 sm:text-5xl lg:text-6xl xl:text-7xl leading-[1.06]">
+              {temple.name}
+            </h1>
+
+            <p className="mt-2.5 text-xs font-bold uppercase tracking-[0.18em] text-gold-900 sm:text-sm">
+              {temple.trustName} · Dwarkanath Bhavan
+            </p>
+
+            <p className="mt-4 text-base leading-relaxed text-maroon-900/90 sm:text-lg max-w-xl mx-auto lg:mx-0">
+              Sarve santu niramayah. You are welcome to book a seva in your name or offer a
+              donation to the temple — both take only a minute, and the exact amount is shown
+              before you pay.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
+              <button onClick={() => onNavigate('sevas')} className="btn-primary sm:px-8 shadow-md hover:shadow-lg transition-all">
+                Book a Seva
+              </button>
+              <button
+                onClick={() => onNavigate('donate')}
+                className="btn-secondary bg-cream-50/95 backdrop-blur-sm sm:px-8 shadow-sm hover:shadow-md transition-all"
+              >
+                Offer a Donation
+              </button>
+            </div>
+
+            {/* Trust Highlights without emojis */}
+            <div className="mt-6 flex flex-wrap items-center justify-center lg:justify-start gap-3 text-xs font-medium text-maroon-900/85">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-cream-50/80 px-2.5 py-1 border border-maroon-200/60">
+                <ZapIcon className="h-3.5 w-3.5 text-gold-700" />
+                <span>Online payments when enabled</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-cream-50/80 px-2.5 py-1 border border-maroon-200/60">
+                <CertificateIcon className="h-3.5 w-3.5 text-gold-700" />
+                <span>Tax benefits subject to Trust eligibility</span>
+              </span>
             </div>
           </div>
 
-          <h1 className="mt-4 font-display text-4xl font-bold tracking-tight text-maroon-950 sm:text-5xl lg:text-6xl leading-[1.08]">
-            {temple.name}
-          </h1>
-
-          <p className="mt-2 text-xs font-bold uppercase tracking-[0.18em] text-gold-900 sm:text-sm">
-            {temple.trustName} · Dwarkanath Bhavan
-          </p>
-
-          <p className="mt-4 text-base leading-relaxed text-maroon-900/90 sm:text-lg">
-            Sarve santu niramayah. You are welcome to book a seva in your name or offer a
-            donation to the temple — both take only a minute, and the exact amount is shown
-            before you pay.
-          </p>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
-            <button onClick={() => onNavigate('sevas')} className="btn-primary sm:px-8 shadow-md hover:shadow-lg transition-all">
-              Book a Seva
-            </button>
-            <button
-              onClick={() => onNavigate('donate')}
-              className="btn-secondary bg-cream-50/95 backdrop-blur-sm sm:px-8 shadow-sm hover:shadow-md transition-all"
-            >
-              Offer a Donation
-            </button>
-          </div>
-
-          {/* Trust Highlights without emojis */}
-          <div className="mt-5 flex flex-wrap items-center justify-center lg:justify-start gap-3 text-xs font-medium text-maroon-900/85">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-cream-50/80 px-2.5 py-1 border border-maroon-200/60">
-              <ZapIcon className="h-3.5 w-3.5 text-gold-700" />
-              <span>Online payments when enabled</span>
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-cream-50/80 px-2.5 py-1 border border-maroon-200/60">
-              <CertificateIcon className="h-3.5 w-3.5 text-gold-700" />
-              <span>Tax benefits subject to Trust eligibility</span>
-            </span>
-          </div>
+          {/* Spacer for Deity image in background */}
+          <div className="hidden lg:block lg:col-span-5 xl:col-span-6 2xl:col-span-6 min-h-[360px] pointer-events-none" />
         </div>
 
         <OrnamentalDivider className="mt-14 lg:mt-20" icon="kalash" />

@@ -27,7 +27,7 @@
 
 @layer components {
   .container-page {
-    @apply mx-auto w-full max-w-6xl px-5 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-7xl xl:max-w-[88rem] 2xl:max-w-[96rem] px-4 sm:px-6 lg:px-8 xl:px-10;
   }
 
   /* Form fields: labels always visible above, generous touch targets. */
@@ -64,6 +64,8 @@
   body {
     background: #fff !important;
     color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   header, footer, nav, .print\:hidden {
     display: none !important;
@@ -73,7 +75,13 @@
     border: 2px solid #6d2620 !important;
     margin: 0 auto !important;
     max-width: 100% !important;
-    padding: 20px !important;
+    padding: 16px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  img {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 
