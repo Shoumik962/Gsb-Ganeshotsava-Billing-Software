@@ -1,0 +1,13 @@
+# One cross-platform dependency set for Python 3.11 (Windows x64 / macOS Intel or Apple Silicon).
+# Deliberately no uvicorn[standard] (uvloop/watcher extras) or OS-specific local builds.
+# psycopg[binary] supplies supported PostgreSQL driver wheels without system libpq installs.
+# Use: python -m pip install -r requirements-dev.txt (both Windows and macOS).
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+SQLAlchemy>=2.0,<3
+psycopg[binary]>=3.2,<4
+alembic>=1.14,<2
+pydantic>=2.7,<3
+PyJWT>=2.9,<3
+httpx>=0.27,<1
+python-dotenv>=1.0,<2
