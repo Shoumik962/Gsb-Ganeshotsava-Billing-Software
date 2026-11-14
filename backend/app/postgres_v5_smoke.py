@@ -50,7 +50,7 @@ def run(username:str,password:str):
             'email':registered[0][0]+'@example.invalid','preferredDate':'2026-12-01'}})
         if checkout.status_code!=201: raise SystemExit(f'Demo booking failed: {checkout.text}')
         receipt=checkout.json()['receipt']
-        if not receipt['receiptNo'].startswith('DEMO-RCP-') or receipt['status']!='DEMO ONLY — NO PAYMENT':
+        if not receipt['receiptNo'].startswith('WAD') or receipt['status']!='DEMO ONLY — NO PAYMENT':
             raise SystemExit('UNSAFE: Demo receipt was not labeled as unpaid')
         records=client.get('/api/account/bookings',headers=d)
         if records.status_code!=200 or len(records.json())!=1: raise SystemExit('Private booking history missing')

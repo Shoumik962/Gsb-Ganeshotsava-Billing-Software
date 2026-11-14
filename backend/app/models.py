@@ -1,6 +1,7 @@
 """PostgreSQL identity, address, deduplication, sevadar field visits, and payments models."""
 from datetime import datetime, timezone
 from uuid import uuid4
+import secrets
 from sqlalchemy import (Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey,
                         Index, Integer, Numeric, String, Text, UniqueConstraint, JSON)
 from sqlalchemy.orm import Mapped, mapped_column
@@ -8,6 +9,9 @@ from .database import Base
 
 def uid(): return str(uuid4())
 def utcnow(): return datetime.now(timezone.utc)
+def generate_wad_id():
+    # 10-character code: prefix WAD followed by 7 random digits (WADXXXXXXX)
+    return f"WAD{secrets.randbelow(9000000) + 1000000}"
 
 class User(Base):
     __tablename__ = 'app_users'
@@ -25,7 +29,7 @@ class User(Base):
 class Devotee(Base):
     __tablename__ = 'devotees'
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
-    devotee_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, default=lambda: 'DEV-' + uuid4().hex.upper())
+    devotee_code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, default=generate_wad_id)
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), default='', nullable=False)
     normalized_name: Mapped[str] = mapped_column(String(210), index=True, nullable=False)
@@ -214,7 +218,7 @@ class Receipt(Base):
     __tablename__ = 'receipts'
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     order_id: Mapped[str] = mapped_column(ForeignKey('payment_orders.id'), unique=True, nullable=False)
-    receipt_no: Mapped[str] = mapped_column(String(60), unique=True, nullable=False, default=lambda: 'RCP-' + uuid4().hex.upper())
+    receipt_no: Mapped[str] = mapped_column(String(60), unique=True, nullable=False, default=generate_wad_id)
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 class SevaMaster(Base):

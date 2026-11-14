@@ -2,10 +2,13 @@
 export interface BookingRecord {
   id: string;
   receiptNo: string;
+  customerId?: string;
+  devoteeCode?: string;
   type: 'seva' | 'donation';
   createdAt: string;
   devoteeName: string;
   phone: string;
+  address?: string;
   email?: string;
   gotra?: string;
   nakshatra?: string;

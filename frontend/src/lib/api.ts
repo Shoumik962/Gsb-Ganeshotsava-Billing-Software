@@ -3,9 +3,9 @@ import type { BookingRecord } from './bookingStore';
 
 export interface DevoteeDetails {
   name: string; gotra: string; nakshatra: string; phone: string; email: string;
-  preferredDate: string; attendanceMode?: 'in-person' | 'absentia';
+  preferredDate: string; attendanceMode?: 'in-person' | 'absentia'; address?: string;
 }
-export interface DonorDetails { name: string; phone: string; email: string; }
+export interface DonorDetails { name: string; phone: string; email: string; address?: string; }
 export interface SevaBookingPayload { sevaIds: string[]; devotee: DevoteeDetails; amount: number; }
 export interface DonationPayload { amount: number; donor: DonorDetails; }
 export interface SubmitResult { ok: true; receipt: BookingRecord; }

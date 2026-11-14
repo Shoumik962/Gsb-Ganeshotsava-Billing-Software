@@ -28,7 +28,7 @@ export default function ReceiptLookupModal({ isOpen, onClose }: ReceiptLookupMod
       {record ? <ReceiptView record={record} onClose={() => setRecord(null)} /> : <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-maroon-800/80">Enter the complete receipt number and the same mobile number used at payment. Receipts are retrieved securely from the server, not this device.</p>
         <label className="block field-label">Receipt number
-          <input className="field-input" value={receiptNo} onChange={e => setReceiptNo(e.target.value)} placeholder="RCP-…" required minLength={20}/>
+          <input className="field-input" value={receiptNo} onChange={e => setReceiptNo(e.target.value)} placeholder="WAD… e.g. WAD1234567" required minLength={8}/>
         </label>
         <label className="block field-label">Mobile number
           <input className="field-input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="10-digit mobile number" required inputMode="tel"/>

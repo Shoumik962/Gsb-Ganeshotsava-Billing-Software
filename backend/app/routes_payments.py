@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .catalog import CATALOG  # legacy receipt item name fallback only
 from .database import get_db
-from .models import Devotee, PaymentOrder, Receipt, SevaBooking, SevaMaster, User, utcnow
+from .models import Devotee, PaymentOrder, Receipt, SevaBooking, SevaMaster, User, utcnow, generate_wad_id
 from .schemas import LookupIn, PaymentIn, VerifyPayment
 from .identity import normalize, phone_normalize, scan_person
 from .payment_environment import payment_configuration, payment_credentials
@@ -39,14 +39,27 @@ def razorpay_get(payment_id:str)->dict:
     except (httpx.HTTPError,ValueError):
         raise HTTPException(502,'Payment provider verification unavailable; retry receipt verification later')
 
-def receipt_view(order:PaymentOrder,receipt:Receipt):
+def receipt_view(order:PaymentOrder,receipt:Receipt,db:Session|None=None):
     items=(order.details or {}).get('seva_items')
     if items is None:
         items=[{'id':s,'name':CATALOG[s]['name'],'price':CATALOG[s]['price'],'timing':CATALOG[s].get('timing')}
                for s in (order.seva_ids or []) if s in CATALOG]
     mode=order.gateway_mode
     is_demo=mode=='demo'
-    return {'id':receipt.receipt_no,'receiptNo':receipt.receipt_no,'type':order.purpose,
+    customer_id = None
+    if db and order.devotee_id:
+        devotee = db.get(Devotee, order.devotee_id)
+        if devotee:
+            customer_id = devotee.devotee_code
+    if not customer_id:
+        customer_id = (order.details or {}).get('customerId') or (order.details or {}).get('devoteeCode')
+    if not customer_id:
+        digits = ''.join(c for c in (order.phone or '') if c.isdigit())
+        customer_id = f"WAD{digits[-7:]}" if len(digits) >= 7 else generate_wad_id()
+
+    address = (order.details or {}).get('address', '')
+    return {'id':receipt.receipt_no,'receiptNo':receipt.receipt_no,'customerId':customer_id,
+            'devoteeCode':customer_id,'type':order.purpose,'address':address,
             'createdAt':receipt.issued_at.isoformat(),'devoteeName':order.name,'phone':order.phone,
             'email':order.email or '', 'gotra':(order.details or {}).get('gotra',''),
             'nakshatra':(order.details or {}).get('nakshatra',''),
@@ -79,12 +92,13 @@ def validate_and_prepare(db:Session,data:PaymentIn,user:User | None):
         if len(chosen)!=len(data.sevaIds): raise HTTPException(422,'Unknown or inactive seva; refresh the catalogue')
         snapshot=[{'id':i,'name':chosen[i].name,'price':chosen[i].price,'timing':chosen[i].timing} for i in data.sevaIds]
         amount=sum(x['price'] for x in snapshot)
-        details={k:str(incoming.get(k,''))[:100] for k in ('gotra','nakshatra','preferredDate','attendanceMode')}
+        details={k:str(incoming.get(k,''))[:200] for k in ('gotra','nakshatra','preferredDate','attendanceMode','address')}
         details['seva_items']=snapshot
         if data.amount!=amount: raise HTTPException(409,'Seva prices have changed; please refresh before paying')
     else:
         if data.sevaIds: raise HTTPException(422,'Donations cannot include seva items')
-        snapshot=[];amount=data.amount;details={}
+        snapshot=[];amount=data.amount
+        details={'address':str(incoming.get('address',''))[:200]} if incoming else {}
     if not 1<=amount<=2000000: raise HTTPException(422,'Amount outside configured limits')
     order=PaymentOrder(purpose=data.purpose,user_id=user.id if user else None,name=name,phone=phone,
                        email=str(incoming.get('email','')).strip().lower()[:254] or None,
@@ -114,7 +128,7 @@ def capture_verified_payment(db:Session,order_id:str,payment_id:str):
     existing=db.scalar(select(Receipt).where(Receipt.order_id==order.id))
     if existing:
         if order.gateway_payment_id!=payment_id: raise HTTPException(409,'Order already paid with another payment ID')
-        return receipt_view(order,existing)
+        return receipt_view(order,existing,db=db)
     payment=razorpay_get(payment_id)
     if (payment.get('id')!=payment_id or payment.get('order_id')!=order_id or
         payment.get('status')!='captured' or payment.get('currency')!='INR' or
@@ -130,9 +144,9 @@ def capture_verified_payment(db:Session,order_id:str,payment_id:str):
                        phone=order.phone,email=order.email)
         db.add(person);db.flush();scan_person(db,person);order.devotee_id=person.id
     finalize_booking(db,order)
-    receipt=Receipt(order_id=order.id,receipt_no=('TEST-RCP-' if mode=='test' else 'RCP-')+uuid4().hex.upper())
+    receipt=Receipt(order_id=order.id,receipt_no=generate_wad_id())
     db.add(receipt);db.flush()
-    result=receipt_view(order,receipt)
+    result=receipt_view(order,receipt,db=db)
     db.commit()
     return result
 
@@ -164,11 +178,17 @@ def demo_checkout(data:PaymentIn,db:Session=Depends(get_db),user:User|None=Depen
     order,snapshot=validate_and_prepare(db,data,user)
     order.gateway_mode='demo';order.status='demo'
     db.add(order);db.flush()
-    order.devotee_id=user.devotee_id if user else None
+    if user and user.devotee_id:
+        order.devotee_id=user.devotee_id
+    else:
+        first,*rest=order.name.strip().split(' ',1)
+        person=Devotee(first_name=first,last_name=rest[0] if rest else '',normalized_name=normalize(order.name),
+                       phone=order.phone,email=order.email)
+        db.add(person);db.flush();order.devotee_id=person.id
     save_booking(db,order,snapshot,user,status='demo')
-    receipt=Receipt(order_id=order.id,receipt_no='DEMO-RCP-'+uuid4().hex.upper())
+    receipt=Receipt(order_id=order.id,receipt_no=generate_wad_id())
     db.add(receipt);db.flush()
-    result=receipt_view(order,receipt)
+    result=receipt_view(order,receipt,db=db)
     db.commit()
     return {'ok':True,'receipt':result}
 
@@ -200,9 +220,9 @@ async def webhook(request:Request,x_razorpay_signature:str=Header(default=''),db
 
 @router.post('/receipts/lookup')
 def lookup(data:LookupIn,db:Session=Depends(get_db)):
-    if len(data.receipt_no.strip())<20: raise HTTPException(422,'Enter full receipt number')
+    if len(data.receipt_no.strip())<8: raise HTTPException(422,'Enter full receipt number')
     normalized=phone_normalize(data.phone)
     result=db.execute(select(Receipt,PaymentOrder).join(PaymentOrder,PaymentOrder.id==Receipt.order_id)
                       .where(Receipt.receipt_no==data.receipt_no.strip().upper(),PaymentOrder.phone==normalized)).first()
     if not result: raise HTTPException(404,'No matching receipt')
-    return receipt_view(*reversed(result))
+    return receipt_view(*reversed(result),db=db)
