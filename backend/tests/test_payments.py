@@ -41,7 +41,7 @@ def test_payment_only_confirmed_after_gateway_capture(client,monkeypatch):
     assert paid.status_code==200,paid.text
     receipt=paid.json()['receipt']
     assert receipt['total']==501
-    assert receipt['receiptNo'].startswith('TEST-RCP-')
+    assert receipt['receiptNo'].startswith('WAD') and len(receipt['receiptNo'])==10
     assert receipt['isTest'] is True
     assert receipt['paymentEnvironment']=='test'
     assert receipt['paymentMode'].startswith('Razorpay TEST')
@@ -137,7 +137,7 @@ def test_live_receipt_has_separate_prefix(client, monkeypatch):
     })
     assert paid.status_code == 200, paid.text
     receipt = paid.json()['receipt']
-    assert receipt['receiptNo'].startswith('RCP-')
+    assert receipt['receiptNo'].startswith('WAD') and len(receipt['receiptNo'])==10
     assert receipt['isTest'] is False
     assert receipt['paymentEnvironment'] == 'live'
 

@@ -20,13 +20,13 @@ def test_complete_admin_seva_demo_booking_receipt(client,auth,monkeypatch):
     catalog=client.get('/api/sevas').json()
     assert [x['id'] for x in catalog]==[seva_id]
     headers,person=register(client)
-    assert person['devotee_code'].startswith('DEV-')
+    assert person['devotee_code'].startswith('WAD') and len(person['devotee_code'])==10
     checkout={'purpose':'seva','sevaIds':[seva_id],'amount':101,
               'devotee':{'name':'QA Devotee One','phone':'9000000101','preferredDate':'2026-11-22','email':'qa1@example.invalid'}}
     result=client.post('/api/payments/demo-checkout',headers=headers,json=checkout)
     assert result.status_code==201,result.text
     receipt=result.json()['receipt']
-    assert receipt['receiptNo'].startswith('DEMO-RCP-')
+    assert receipt['receiptNo'].startswith('WAD') and len(receipt['receiptNo'])==10
     assert receipt['status']=='DEMO ONLY — NO PAYMENT'
     assert receipt['isDemo'] and receipt['isTest']
     assert receipt['total']==101 and receipt['items'][0]['name']=='TEST Ganesh Archana'
@@ -141,7 +141,7 @@ def test_verified_razorpay_test_seva_booking_creates_confirmed_booking(client,au
     confirmed=client.post('/api/payments/verify',json=verify)
     assert confirmed.status_code==200,confirmed.text
     receipt=confirmed.json()['receipt']
-    assert receipt['receiptNo'].startswith('TEST-RCP-') and receipt['isTest']
+    assert receipt['receiptNo'].startswith('WAD') and len(receipt['receiptNo'])==10 and receipt['isTest']
     assert receipt['isDemo'] is False and receipt['items'][0]['price']==251
     assert client.post('/api/payments/verify',json=verify).json()['receipt']['receiptNo']==receipt['receiptNo']
     with SessionLocal() as db:

@@ -8,7 +8,7 @@ import type { BookingRecord } from '../lib/bookingStore';
 /** Standard preset amounts on Indian donation sites. */
 const PRESETS = [101, 501, 1001, 5001];
 
-const EMPTY: DonorDetails = { name: '', phone: '', email: '' };
+const EMPTY: DonorDetails = { name: '', phone: '', email: '', address: '' };
 
 type Stage = 'form' | 'review' | 'done';
 
@@ -198,6 +198,20 @@ export default function DonationForm() {
                 value={donor.email}
                 onChange={(e) => set('email', e.target.value)}
                 autoComplete="email"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="donor-address" className="field-label">
+                Address / Flat & Locality <span className="font-normal text-maroon-700/60">(optional — printed on 80G receipt)</span>
+              </label>
+              <input
+                id="donor-address"
+                className="field-input"
+                placeholder="e.g. Flat No 1304, Pant Nagar, Ghatkopar East, Mumbai 400075"
+                value={donor.address || ''}
+                onChange={(e) => set('address', e.target.value)}
+                autoComplete="street-address"
               />
             </div>
 

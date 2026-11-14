@@ -54,6 +54,7 @@ const EMPTY: DevoteeDetails = {
   email: '',
   preferredDate: '',
   attendanceMode: 'in-person',
+  address: '',
 };
 
 export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
@@ -370,6 +371,20 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
                 Sevas marked “Except on Ekadashi” are not performed on that day. The temple office
                 will call you to confirm the date.
               </p>
+            </div>
+
+            <div>
+              <label htmlFor="devotee-address" className="field-label">
+                Address / Flat & Locality <span className="font-normal text-maroon-700/60">(optional — printed on official receipt)</span>
+              </label>
+              <input
+                id="devotee-address"
+                className="field-input"
+                placeholder="e.g. Flat No 1304, Pant Nagar, Ghatkopar East, Mumbai 400075"
+                value={details.address || ''}
+                onChange={(e) => set('address', e.target.value)}
+                autoComplete="street-address"
+              />
             </div>
           </div>
 
