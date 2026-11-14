@@ -10,8 +10,8 @@ from .database import Base
 def uid(): return str(uuid4())
 def utcnow(): return datetime.now(timezone.utc)
 def generate_wad_id():
-    # 10-character code: prefix WAD followed by 7 random digits (WADXXXXXXX)
-    return f"WAD{secrets.randbelow(9000000) + 1000000}"
+    # 64-bit random public identifier: avoid birthday collisions at 10k+ devotees.
+    return 'WAD-' + secrets.token_hex(8).upper()
 
 class User(Base):
     __tablename__ = 'app_users'
@@ -23,6 +23,9 @@ class User(Base):
     full_name: Mapped[str | None] = mapped_column(String(200))
     devotee_id: Mapped[str | None] = mapped_column(ForeignKey('devotees.id'))
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    phone_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    profile_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    receipt_sms_opt_in: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -36,6 +39,8 @@ class Devotee(Base):
     date_of_birth: Mapped[datetime | None] = mapped_column(Date, nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), index=True)
     email: Mapped[str | None] = mapped_column(String(254), index=True)
+    gotra: Mapped[str | None] = mapped_column(String(100))
+    nakshatra: Mapped[str | None] = mapped_column(String(100))
     # Government ID, if collected under separate policy, is HMACed before entering this field.
     govt_id_digest: Mapped[str | None] = mapped_column(String(64), index=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default='active')
@@ -218,7 +223,7 @@ class Receipt(Base):
     __tablename__ = 'receipts'
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     order_id: Mapped[str] = mapped_column(ForeignKey('payment_orders.id'), unique=True, nullable=False)
-    receipt_no: Mapped[str] = mapped_column(String(60), unique=True, nullable=False, default=generate_wad_id)
+    receipt_no: Mapped[str] = mapped_column(String(60), unique=True, nullable=False, default=lambda: 'RCP-' + secrets.token_hex(10).upper())
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 class SevaMaster(Base):
@@ -266,3 +271,61 @@ class AdminAudit(Base):
     before: Mapped[dict | None] = mapped_column(JSON)
     after: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class VerificationChallenge(Base):
+    __tablename__ = 'verification_challenges'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey('app_users.id'), nullable=False, index=True)
+    channel: Mapped[str] = mapped_column(String(10), nullable=False)  # phone or email
+    code_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (Index('ix_verification_user_channel', 'user_id', 'channel', 'created_at'),)
+
+class FamilyLinkRequest(Base):
+    __tablename__ = 'family_link_requests'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    devotee_id: Mapped[str] = mapped_column(ForeignKey('devotees.id'), nullable=False)
+    family_id: Mapped[str] = mapped_column(ForeignKey('families.id'), nullable=False)
+    address_id: Mapped[str] = mapped_column(ForeignKey('address_master.id'), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default='pending', nullable=False)
+    reviewed_by_id: Mapped[str | None] = mapped_column(ForeignKey('app_users.id'))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (UniqueConstraint('devotee_id','family_id',name='uq_family_link_request'),)
+
+class HouseholdBenefit(Base):
+    __tablename__ = 'household_benefits'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    address_id: Mapped[str] = mapped_column(ForeignKey('address_master.id'), nullable=False)
+    family_id: Mapped[str] = mapped_column(ForeignKey('families.id'), nullable=False)
+    event_code: Mapped[str] = mapped_column(String(80), nullable=False)
+    benefit_type: Mapped[str] = mapped_column(String(30), nullable=False)  # prasad_voucher / pooja_invitation
+    voucher_code: Mapped[str] = mapped_column(String(40), unique=True, nullable=False, default=lambda: 'BEN-' + secrets.token_hex(8).upper())
+    created_by_id: Mapped[str] = mapped_column(ForeignKey('app_users.id'), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    __table_args__ = (UniqueConstraint('address_id','event_code','benefit_type',name='uq_household_one_benefit'),)
+
+class ReceiptDelivery(Base):
+    __tablename__ = 'receipt_deliveries'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    receipt_id: Mapped[str] = mapped_column(ForeignKey('receipts.id'), nullable=False)
+    channel: Mapped[str] = mapped_column(String(10), default='sms', nullable=False)
+    phone: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default='queued', nullable=False)
+    provider_ref: Mapped[str | None] = mapped_column(String(150))
+    error: Mapped[str | None] = mapped_column(String(250))
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    __table_args__ = (UniqueConstraint('receipt_id','channel',name='uq_receipt_delivery_channel'),)
+
+class RequestThrottle(Base):
+    __tablename__ = 'request_throttles'
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # keyed hash; no raw IP stored
+    action: Mapped[str] = mapped_column(String(40), nullable=False)
+    count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    reset_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

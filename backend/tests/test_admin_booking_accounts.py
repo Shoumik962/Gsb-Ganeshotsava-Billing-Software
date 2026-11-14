@@ -4,12 +4,30 @@ from app.database import SessionLocal
 from app.models import (AdminAudit, Devotee, DuplicateCandidate, PaymentOrder, Receipt, SevaBooking, SevaMaster, User)
 
 def register(client, idx=1, phone='9000000101', full_name='QA Devotee One'):
+    from unittest.mock import patch
+    import re
+    codes={}
+    def capture_email(_to,code):codes['email']=code
+    def capture_sms(_to,message):codes['phone']=re.search(r'code: (\d{6})',message).group(1)
     data={'username':f'qadev{idx}','password':'ExampleTestPass123!', 'email':f'qa{idx}@example.invalid',
-          'full_name':full_name,'phone':phone}
-    res=client.post('/api/auth/register',json=data)
+          'full_name':full_name,'phone':phone,'gotra':'Unknown','nakshatra':'Unknown',
+          'shared_phone_confirmed': idx != 1,'receipt_sms_opt_in':True,
+          'address':{'unit':'101','building':'QA Building','street':'QA Test Road','locality':'QA Locality',
+                     'city':'Mumbai','state':'Maharashtra','pincode':'400037'},'confirm_new_address':True}
+    with patch('app.verification.send_email',capture_email),patch('app.verification.send_sms',capture_sms):
+        res=client.post('/api/auth/register',json=data)
     assert res.status_code==201,res.text
+    blocked=client.post('/api/auth/login',json={'username':data['username'],'password':data['password']})
+    assert blocked.status_code==403
+    for channel in ('phone','email'):
+        check=client.post('/api/auth/verify',json={'username':data['username'],'password':data['password'],
+                                                  'channel':channel,'code':codes[channel]})
+        assert check.status_code==200,check.text
     token=client.post('/api/auth/login',json={'username':data['username'],'password':data['password']}).json()['access_token']
-    return {'Authorization':f'Bearer {token}'},res.json()
+    headers={'Authorization':f'Bearer {token}'}
+    profile=client.post('/api/account/complete-profile',headers=headers,json={'gotra':'Unknown','nakshatra':'Unknown','receipt_sms_opt_in':True,'request_family_link':True})
+    assert profile.status_code==200,profile.text
+    return headers,res.json()
 
 def test_complete_admin_seva_demo_booking_receipt(client,auth,monkeypatch):
     monkeypatch.setenv('APP_ENV','development');monkeypatch.setenv('RAZORPAY_MODE','test')
@@ -20,13 +38,13 @@ def test_complete_admin_seva_demo_booking_receipt(client,auth,monkeypatch):
     catalog=client.get('/api/sevas').json()
     assert [x['id'] for x in catalog]==[seva_id]
     headers,person=register(client)
-    assert person['devotee_code'].startswith('WAD') and len(person['devotee_code'])==10
+    assert person['devotee_code'].startswith('WAD-') and len(person['devotee_code'])==20
     checkout={'purpose':'seva','sevaIds':[seva_id],'amount':101,
               'devotee':{'name':'QA Devotee One','phone':'9000000101','preferredDate':'2026-11-22','email':'qa1@example.invalid'}}
     result=client.post('/api/payments/demo-checkout',headers=headers,json=checkout)
     assert result.status_code==201,result.text
     receipt=result.json()['receipt']
-    assert receipt['receiptNo'].startswith('WAD') and len(receipt['receiptNo'])==10
+    assert receipt['receiptNo'].startswith('DEMO-RCP-')
     assert receipt['status']=='DEMO ONLY — NO PAYMENT'
     assert receipt['isDemo'] and receipt['isTest']
     assert receipt['total']==101 and receipt['items'][0]['name']=='TEST Ganesh Archana'
@@ -136,12 +154,18 @@ def test_verified_razorpay_test_seva_booking_creates_confirmed_booking(client,au
             'razorpay_payment_id':'pay_seva_123','razorpay_signature':signature}
     bad=client.post('/api/payments/verify',json={**verify,'razorpay_signature':'forged'})
     assert bad.status_code==400
+    from app import receipt_notifications
+    sent=[]
+    def capture_sms(phone,message):
+        sent.append((phone,message))
+        return 'provider-test-ref'
+    monkeypatch.setattr(receipt_notifications,'send_sms',capture_sms)
     monkeypatch.setattr(routes_payments,'razorpay_get',lambda _: {'id':'pay_seva_123',
          'order_id':'order_seva_test_123','status':'captured','currency':'INR','amount':25100})
     confirmed=client.post('/api/payments/verify',json=verify)
     assert confirmed.status_code==200,confirmed.text
     receipt=confirmed.json()['receipt']
-    assert receipt['receiptNo'].startswith('WAD') and len(receipt['receiptNo'])==10 and receipt['isTest']
+    assert receipt['receiptNo'].startswith('TEST-RCP-') and receipt['isTest']
     assert receipt['isDemo'] is False and receipt['items'][0]['price']==251
     assert client.post('/api/payments/verify',json=verify).json()['receipt']['receiptNo']==receipt['receiptNo']
     with SessionLocal() as db:
@@ -149,6 +173,15 @@ def test_verified_razorpay_test_seva_booking_creates_confirmed_booking(client,au
         assert db.query(PaymentOrder).first().status=='paid'
         assert db.query(Receipt).count()==1
     assert client.get('/api/account/bookings',headers=headers).json()[0]['receipt_no']==receipt['receiptNo']
+    assert len(sent)==1 and sent[0][0]=='9000000101' and receipt['receiptNo'] in sent[0][1]
+    from app.models import ReceiptDelivery
+    with SessionLocal() as db:
+        row=db.query(ReceiptDelivery).first()
+        assert row.status=='sent' and row.provider_ref=='provider-test-ref'
+    assert client.get(f"/api/account/receipts/{receipt['receiptNo']}",headers=headers).status_code==200
+    assert client.get(f"/api/account/receipts/{receipt['receiptNo']}",headers=auth).status_code==404
+    assert client.get(f"/api/account/receipts/{receipt['receiptNo']}/delivery",headers=headers).status_code==200
+
 
 
 def test_admin_upload_image(client, auth):
