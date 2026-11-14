@@ -2,10 +2,13 @@
 import hashlib
 import hmac
 import os
+import secrets
 from uuid import uuid4
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
+from sqlalchemy.engine import make_url
+from pathlib import Path
 from sqlalchemy.orm import Session
 from .catalog import CATALOG  # legacy receipt item name fallback only
 from .database import get_db
@@ -15,19 +18,47 @@ from .identity import normalize, phone_normalize, scan_person
 from .payment_environment import payment_configuration, payment_credentials
 from .security import optional_user
 from .routes_admin import settings
+from .receipt_notifications import create_delivery, deliver
 
 router=APIRouter(prefix='/api',tags=['payments & receipts'])
 
-@router.get('/payments/config')
-def public_payment_config():
-    config=payment_configuration()
-    config['demoCheckoutEnabled']=demo_enabled()
-    return config
+def demo_enabled(request: Request) -> bool:
+    """Only a loopback developer using the disposable local QA database can create demos.
 
-def demo_enabled() -> bool:
-    return (os.getenv('APP_ENV','development').strip().lower()=='development' and
-            os.getenv('RAZORPAY_MODE','test').strip().lower()=='test' and
-            os.getenv('ENABLE_DEMO_CHECKOUT','0').strip()=='1')
+    Never trust APP_ENV alone as a production safety boundary. A remote client, a
+    public tunnel or a database other than the designated local QA database is denied.
+    """
+    if not (os.getenv('APP_ENV', '').strip().lower() == 'development' and
+            os.getenv('RAZORPAY_MODE', '').strip().lower() == 'test' and
+            os.getenv('ENABLE_DEMO_CHECKOUT', '0').strip() == '1'):
+        return False
+    try:
+        url = make_url(os.environ['DATABASE_URL'])
+        if url.drivername.startswith('postgresql'):
+            local_database = (url.host in {'localhost', '127.0.0.1', '::1'} and
+                              url.database == 'ganeshotsav_dev')
+            qa_test_client = False
+        elif url.drivername == 'sqlite':
+            # Only permit pytest's isolated, temporary SQLite fixture.
+            local_database = Path(url.database or '').name.startswith('ganesh_api_tests_')
+            qa_test_client = local_database
+        else:
+            return False
+        if not local_database or not request.client:
+            return False
+        if qa_test_client and request.client.host == 'testclient':
+            return True  # FastAPI TestClient's special in-process address, never real HTTP.
+        return (request.client.host in {'127.0.0.1', '::1'} and
+                request.url.hostname in {'localhost', '127.0.0.1', '::1'})
+    except (KeyError, ValueError):
+        return False
+
+
+@router.get('/payments/config')
+def public_payment_config(request: Request):
+    config=payment_configuration()
+    config['demoCheckoutEnabled']=demo_enabled(request)
+    return config
 
 def razorpay_get(payment_id:str)->dict:
     _mode,key,secret=payment_credentials()
@@ -38,6 +69,10 @@ def razorpay_get(payment_id:str)->dict:
             return response.json()
     except (httpx.HTTPError,ValueError):
         raise HTTPException(502,'Payment provider verification unavailable; retry receipt verification later')
+
+def new_receipt_no(mode:str)->str:
+    prefix='DEMO-RCP' if mode=='demo' else ('TEST-RCP' if mode=='test' else 'RCP')
+    return prefix+'-'+secrets.token_hex(10).upper()
 
 def receipt_view(order:PaymentOrder,receipt:Receipt,db:Session|None=None):
     items=(order.details or {}).get('seva_items')
@@ -54,8 +89,7 @@ def receipt_view(order:PaymentOrder,receipt:Receipt,db:Session|None=None):
     if not customer_id:
         customer_id = (order.details or {}).get('customerId') or (order.details or {}).get('devoteeCode')
     if not customer_id:
-        digits = ''.join(c for c in (order.phone or '') if c.isdigit())
-        customer_id = f"WAD{digits[-7:]}" if len(digits) >= 7 else generate_wad_id()
+        customer_id = 'Not assigned'  # Never manufacture an identity from a phone number.
 
     address = (order.details or {}).get('address', '')
     return {'id':receipt.receipt_no,'receiptNo':receipt.receipt_no,'customerId':customer_id,
@@ -72,18 +106,28 @@ def receipt_view(order:PaymentOrder,receipt:Receipt,db:Session|None=None):
             'paymentMode':('LOCAL DEMO — NOT PAID' if is_demo else
                            ('Razorpay TEST (no real money)' if mode!='live' else 'Online Payment (UPI/Card)'))}
 
-def validate_and_prepare(db:Session,data:PaymentIn,user:User | None):
+def validate_and_prepare(db:Session,data:PaymentIn,user:User | None, *, allow_unverified_demo:bool=False):
+    """Shared price/availability validation. ONLY the isolated demo route may skip login.
+
+    Real Razorpay orders always use the default strict identity checks.
+    """
     if data.purpose not in {'seva','donation'}: raise HTTPException(422,'Invalid payment purpose')
     site=settings(db)
     if data.purpose=='seva' and not site['booking_enabled']: raise HTTPException(403,'Seva booking is temporarily disabled')
     if data.purpose=='donation' and not site['donations_enabled']: raise HTTPException(403,'Donations are temporarily disabled')
-    if data.purpose=='seva' and (not user or user.role!='devotee'):
+    if data.purpose=='seva' and not allow_unverified_demo and (not user or user.role!='devotee'):
         raise HTTPException(401,'Sign in or create a devotee account before booking a seva')
+    if data.purpose=='seva' and not allow_unverified_demo and not (user.email_verified and user.phone_verified and user.profile_completed_at):
+        raise HTTPException(403,'Verify phone and email, then complete your profile before booking')
     incoming=data.devotee if data.purpose=='seva' else data.donor
     if not incoming or not incoming.get('name') or not incoming.get('phone'):
         raise HTTPException(422,'Name and phone are required')
     phone=phone_normalize(incoming['phone'])
     name=str(incoming['name']).strip()[:200]
+    if data.purpose=='seva' and not allow_unverified_demo:
+        verified_person=db.get(Devotee,user.devotee_id)
+        if not verified_person or phone!=verified_person.phone:
+            raise HTTPException(403,'Checkout phone must match your verified account phone')
     if not name: raise HTTPException(422,'Name required')
     if data.purpose=='seva':
         if not data.sevaIds or len(data.sevaIds)>40 or len(set(data.sevaIds))!=len(data.sevaIds):
@@ -144,10 +188,13 @@ def capture_verified_payment(db:Session,order_id:str,payment_id:str):
                        phone=order.phone,email=order.email)
         db.add(person);db.flush();scan_person(db,person);order.devotee_id=person.id
     finalize_booking(db,order)
-    receipt=Receipt(order_id=order.id,receipt_no=generate_wad_id())
+    receipt=Receipt(order_id=order.id,receipt_no=new_receipt_no(order.gateway_mode))
     db.add(receipt);db.flush()
+    delivery=create_delivery(db,order,receipt)
     result=receipt_view(order,receipt,db=db)
+    delivery_id=delivery.id if delivery.status=='queued' else None
     db.commit()
+    if delivery_id:deliver(db,delivery_id)
     return result
 
 @router.post('/payments/orders',status_code=201)
@@ -172,22 +219,30 @@ def create_order(data:PaymentIn,db:Session=Depends(get_db),user:User|None=Depend
             'email':order.email,'paymentMode':mode}
 
 @router.post('/payments/demo-checkout',status_code=201)
-def demo_checkout(data:PaymentIn,db:Session=Depends(get_db),user:User|None=Depends(optional_user)):
-    """No Razorpay call, no captured payment; NEVER a confirmed financial receipt."""
-    if not demo_enabled(): raise HTTPException(404,'Local demo checkout is disabled')
-    order,snapshot=validate_and_prepare(db,data,user)
-    order.gateway_mode='demo';order.status='demo'
+def demo_checkout(data:PaymentIn,request:Request,db:Session=Depends(get_db),user:User|None=Depends(optional_user)):
+    """Isolated LOCAL QA booking. Never captures money, sends SMS, or grants benefits.
+
+    No login / OTP / profile completion is needed for the disposable demo flow.
+    Real checkout continues to require a verified, completed devotee account.
+    """
+    if not demo_enabled(request): raise HTTPException(404,'Local demo checkout is disabled')
+    if data.purpose!='seva': raise HTTPException(422,'Local demo supports seva bookings only')
+    # Associate a signed-in devotee only when their phone actually matches. A
+    # guest demo does not create or merge a permanent devotee/family identity.
+    incoming=data.devotee or {}
+    person=db.get(Devotee,user.devotee_id) if user and user.role=='devotee' and user.devotee_id else None
+    demo_user=user if person and person.phone==phone_normalize(str(incoming.get('phone',''))) else None
+    order,snapshot=validate_and_prepare(db,data,demo_user,allow_unverified_demo=True)
+    order.gateway_mode='demo'
+    order.status='demo'  # Never 'paid' or 'confirmed'.
+    if demo_user:
+        order.devotee_id=demo_user.devotee_id
+    # Anonymous DEMO receipts deliberately do not create real Devotee/Family IDs.
     db.add(order);db.flush()
-    if user and user.devotee_id:
-        order.devotee_id=user.devotee_id
-    else:
-        first,*rest=order.name.strip().split(' ',1)
-        person=Devotee(first_name=first,last_name=rest[0] if rest else '',normalized_name=normalize(order.name),
-                       phone=order.phone,email=order.email)
-        db.add(person);db.flush();order.devotee_id=person.id
-    save_booking(db,order,snapshot,user,status='demo')
-    receipt=Receipt(order_id=order.id,receipt_no=generate_wad_id())
+    save_booking(db,order,snapshot,demo_user,status='demo')
+    receipt=Receipt(order_id=order.id,receipt_no=new_receipt_no('demo'))
     db.add(receipt);db.flush()
+    create_delivery(db,order,receipt)  # status='skipped'; no provider contact.
     result=receipt_view(order,receipt,db=db)
     db.commit()
     return {'ok':True,'receipt':result}

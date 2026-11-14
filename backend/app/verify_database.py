@@ -13,8 +13,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from . import models  # noqa: F401 -- register model metadata
 from .database import Base, engine
 
-EXPECTED_REVISION = '0003_admin_portal'
-EXPECTED_TABLE_COUNT = 22
+EXPECTED_REVISION = '0004_verification'
+EXPECTED_TABLE_COUNT = 27
 
 
 def inspect_schema():
@@ -70,7 +70,7 @@ def inspect_schema():
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Verify all 22 PostgreSQL application tables and Alembic revision; read-only')
+    parser = argparse.ArgumentParser(description='Verify all 27 PostgreSQL application tables and Alembic revision; read-only')
     parser.add_argument('--json', action='store_true', help='Machine-readable result')
     args = parser.parse_args()
     try:

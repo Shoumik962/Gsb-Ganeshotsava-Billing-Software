@@ -41,7 +41,7 @@ def test_payment_only_confirmed_after_gateway_capture(client,monkeypatch):
     assert paid.status_code==200,paid.text
     receipt=paid.json()['receipt']
     assert receipt['total']==501
-    assert receipt['receiptNo'].startswith('WAD') and len(receipt['receiptNo'])==10
+    assert receipt['receiptNo'].startswith('TEST-RCP-')
     assert receipt['isTest'] is True
     assert receipt['paymentEnvironment']=='test'
     assert receipt['paymentMode'].startswith('Razorpay TEST')
@@ -57,11 +57,8 @@ def test_server_refuses_client_side_seva_price_and_unknown_id(client,monkeypatch
     monkeypatch.setenv('RAZORPAY_KEY_SECRET','testsecret')
     created=client.post('/api/admin/sevas',headers=auth,json={'id':'ganahoma','name':'Ganahoma','price':3000,'category':'offerings'})
     assert created.status_code==201,created.text
-    account=client.post('/api/auth/register',json={'username':'shyamtest','password':'ThisIsATestPass123!',
-       'email':'shyam@example.invalid','full_name':'Shyam Pai','phone':'9876543210'})
-    assert account.status_code==201,account.text
-    token=client.post('/api/auth/login',json={'username':'shyamtest','password':'ThisIsATestPass123!'}).json()['access_token']
-    headers={'Authorization':f'Bearer {token}'}
+    from test_admin_booking_accounts import register
+    headers,_=register(client,idx=19,phone='9876543210',full_name='Shyam Pai')
     base={'purpose':'seva','devotee':{'name':'Shyam Pai','phone':'9876543210'},'sevaIds':['ganahoma']}
     unauth=client.post('/api/payments/orders',json={**base,'amount':3000})
     assert unauth.status_code==401
@@ -137,7 +134,7 @@ def test_live_receipt_has_separate_prefix(client, monkeypatch):
     })
     assert paid.status_code == 200, paid.text
     receipt = paid.json()['receipt']
-    assert receipt['receiptNo'].startswith('WAD') and len(receipt['receiptNo'])==10
+    assert receipt['receiptNo'].startswith('RCP-')
     assert receipt['isTest'] is False
     assert receipt['paymentEnvironment'] == 'live'
 

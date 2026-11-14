@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
 from .database import get_db
@@ -7,6 +7,7 @@ from .models import (Address, Devotee, DevoteeAddress, DuplicateCandidate, Dupli
                      FamilyAddress, FamilyMember, FamilyConsentAudit, MergeAudit, User, utcnow)
 from .schemas import AddressIn, AddressLink, DecisionIn, DevoteeIn, FamilyIn, FamilyMemberIn, GeoVerify, Login, UserIn, VisitConsentIn
 from .security import current_user, hash_password, require_roles, sign_token, verify_password
+from .throttle import check_limit
 
 router = APIRouter(prefix='/api', tags=['identity & staff'])
 admin = require_roles('super_admin', 'admin')
@@ -22,11 +23,15 @@ def address_view(a: Address):
             'verified':a.verified,'geo_accuracy_m':a.geo_accuracy_m}
 
 @router.post('/auth/login')
-def login(data: Login, db: Session = Depends(get_db)):
+def login(data: Login, request:Request, db: Session = Depends(get_db)):
+    check_limit(db,request,'login',25,60)
     user = db.scalar(select(User).where(User.username == data.username.strip().lower()))
     if not user or not user.active or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, 'Invalid login')
-    return {'access_token':sign_token(user),'token_type':'bearer','role':user.role,'username':user.username}
+    if user.role=='devotee' and not (user.email_verified and user.phone_verified):
+        raise HTTPException(403, 'Verify both your phone and email before signing in')
+    return {'access_token':sign_token(user),'token_type':'bearer','role':user.role,'username':user.username,
+            'profile_completed':bool(user.profile_completed_at)}
 
 @router.get('/auth/me')
 def me(user: User = Depends(current_user)):
