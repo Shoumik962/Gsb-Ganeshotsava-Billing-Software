@@ -1,0 +1,12 @@
+# v6 identity and privacy design decisions
+
+- **One person != one phone != one family.** Email is account-unique. Shared phones require explicit attestation + phone OTP, with separate identities and staff-reviewed family membership.
+- **Address canonical master.** Required flat/house number and PIN code; candidate lookup requires same PIN and same normalized unit and a score >=90%. Public matches contain postal text only, no names/contacts or family codes.
+- **Address isn't proof.** Devotee residence is self-declared; a matched residence cannot auto-verify kinship. New family records are issued when no known household exists; possible family linkage requires user request and admin approval.
+- **Household benefit policy.** `household_benefits` has a unique index for `(address_id,event_code,benefit_type)`. The issuance API anchors very similar postal variants to one representative address before inserting. Manual review is required for legitimate exceptions and ambiguous cases; fuzzy matching can yield false positives/negatives.
+- **OTP.** Separate phone and email codes, HMAC-SHA-256 at rest, 10-minute TTL, five failed tries, 60-second resend cooldown and no console codes outside `APP_ENV=development`. Developers may use console adapters to test without fees. The app never sends a code in an API response.
+- **Receipt SMS.** SMS content carries receipt ID only and a login link, never a public link to personal receipt data. Sent only after captured payment, verified account phone and explicit SMS consent. A failed SMS retains the receipt and can be retried by an admin. Demo receipts are marked skipped.
+- **Authentication boundaries.** Unverified devotee account cannot log in. After login, a profile must be completed before seva checkout. Receipt detail queries are scoped to the owner of the payment order.
+- **Go-live controls still required.** SMTP and Twilio credentials and sender approvals, WAF/CAPTCHA, trusted-proxy config, exhaustive concurrency tests, secure recovery and password-reset process, phone/email change verification, encryption at rest, retention and privacy notices, access audits, monitoring and user consent/legal review. SMS fees and delivery can vary by provider/region.
+
+- **Collision-resistant IDs.** New DEV IDs are `WAD-` plus 64 random bits (legacy short IDs remain unchanged). Receipt numbers are environment-prefixed (`DEMO-RCP-`, `TEST-RCP-`, `RCP-`) and generated with 80 random bits; phone numbers are never used to manufacture fake identities.

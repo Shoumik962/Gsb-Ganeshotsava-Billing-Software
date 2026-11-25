@@ -125,6 +125,9 @@ class ProfileCompletion(BaseModel):
     receipt_sms_opt_in:bool=False
     confirm_residence:bool=True
     request_family_link:bool=False
+    address:AddressInput|None=None
+    selected_address_id:str|None=None
+    confirm_new_address:bool=False
 
 def verified_user(db:Session,username:str,password:str)->User:
     user=db.scalar(select(User).where(User.username==username.strip().lower()))
@@ -220,7 +223,17 @@ def complete_profile(data:ProfileCompletion,db:Session=Depends(get_db),user:User
     if not data.confirm_residence:raise HTTPException(422,'Please confirm your current address')
     person=db.get(Devotee,user.devotee_id)
     link=db.scalar(select(DevoteeAddress).where(DevoteeAddress.devotee_id==person.id,DevoteeAddress.is_current.is_(True)))
-    if not link:raise HTTPException(422,'A full current address is mandatory')
+    if not link:
+        if not data.address:raise HTTPException(422,'A full current address is mandatory')
+        try:
+            addr, reused=choose_address(db,data.address,data.selected_address_id,data.confirm_new_address)
+        except ValueError as exc:
+            raise HTTPException(422,str(exc))
+        if addr is None:
+            raise HTTPException(409,{'code':'address_match_requires_confirmation','matches':reused,
+                                     'message':'Please confirm the matching full-unit address or choose a different address.'})
+        link=DevoteeAddress(devotee_id=person.id,address_id=addr.id,address_type='home',is_current=True)
+        db.add(link);db.flush()
     person.gotra=data.gotra.strip();person.nakshatra=data.nakshatra.strip();person.date_of_birth=data.date_of_birth
     user.receipt_sms_opt_in=data.receipt_sms_opt_in
     if not user.profile_completed_at:user.profile_completed_at=utcnow()

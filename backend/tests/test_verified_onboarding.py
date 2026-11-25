@@ -173,3 +173,26 @@ def test_unauthorized_receipt_not_visible_to_other_devotee(client,auth,monkeypat
         assert delivery.status=='failed' and delivery.attempts==1
     # Failed SMS did not rollback captured payment or the unique receipt.
     assert client.get('/api/account/bookings',headers=h1).json()[0]['receipt_no']==receipt_no
+
+
+def test_legacy_devotee_without_address_can_complete_profile(client):
+    from app.models import Devotee
+    from app.security import hash_password
+    with SessionLocal() as db:
+        person=Devotee(first_name='Legacy',last_name='Devotee',normalized_name='legacy devotee',
+                       phone='9876500099',email='legacy@example.invalid')
+        db.add(person);db.flush()
+        db.add(User(username='legacyuser',password_hash=hash_password('LegacyPass1234!'),role='devotee',
+                    email='legacy@example.invalid',full_name='Legacy Devotee',devotee_id=person.id,
+                    email_verified=True,phone_verified=True))
+        db.commit()
+    token=client.post('/api/auth/login',json={'username':'legacyuser','password':'LegacyPass1234!'}).json()['access_token']
+    headers={'Authorization':'Bearer '+token}
+    assert client.post('/api/account/complete-profile',headers=headers,json={'gotra':'Kashyapa','nakshatra':'Rohini'}).status_code==422
+    done=client.post('/api/account/complete-profile',headers=headers,json={
+        'gotra':'Kashyapa','nakshatra':'Rohini','receipt_sms_opt_in':True,
+        'address':BASE,'confirm_new_address':True})
+    assert done.status_code==200,done.text
+    assert done.json()['family_id'].startswith('FAM-')
+    me=client.get('/api/account/me',headers=headers).json()
+    assert me['profile_completed'] and me['address']['unit']=='101' and me['family_id']==done.json()['family_id']

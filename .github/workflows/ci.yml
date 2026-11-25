@@ -121,7 +121,5 @@ jobs:
           python -m app.verify_database
       - name: Seed ephemeral test administrator
         run: python -m app.seed_admin --username admin --password-env GANESH_QA_PASSWORD
-      - name: Exercise actual PostgreSQL via FastAPI TestClient
-        run: python -m app.postgres_smoke --username admin --password-env GANESH_QA_PASSWORD
-      - name: Test admin seva, 3 account registrations, demo booking and receipt on PostgreSQL 18
-        run: python -m app.postgres_v5_smoke --username admin --password-env GANESH_QA_PASSWORD
+      - name: Test verified signup, family review, household vouchers and demo receipt on PostgreSQL 18
+        run: python -m app.postgres_v6_smoke --username admin --password-env GANESH_QA_PASSWORD

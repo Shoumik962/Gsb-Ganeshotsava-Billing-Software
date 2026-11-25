@@ -187,7 +187,7 @@ export default function SevaList() {
           {visibleCategories.map((category) => {
             const items = sevasByCategory(category.id);
             const isCollapsed = collapsed[category.id];
-            const priceFrom = Math.min(...items.map((s) => s.price));
+            const priceFrom = items.length ? Math.min(...items.map((s) => s.price)) : null;
 
             return (
               <section key={category.id} aria-labelledby={`group-${category.id}`}>
@@ -207,8 +207,12 @@ export default function SevaList() {
                     <p className="mt-1 text-sm leading-relaxed text-maroon-900/80">{category.blurb}</p>
                     <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-gold-100/90 border border-gold-300/80 px-3 py-0.5 text-xs font-bold text-gold-950 shadow-2xs">
                       <span>{items.length} sevas</span>
-                      <span className="text-gold-600">·</span>
-                      <span>from {rupees(priceFrom)}</span>
+                      {priceFrom !== null && (
+                        <>
+                          <span className="text-gold-600">·</span>
+                          <span>from {rupees(priceFrom)}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <span className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cream-100 border border-gold-300/60 group-hover:bg-maroon-800 group-hover:text-cream-50 group-hover:border-maroon-800 text-maroon-700 transition-colors">

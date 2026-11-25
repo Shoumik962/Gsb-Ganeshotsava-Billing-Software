@@ -41,13 +41,8 @@ export default function ReceiptView({ record, onClose }: ReceiptViewProps) {
   const youtubeUrl = 'https://www.youtube.com/gsbsarvajanikganeshotsava';
   const facebookUrl = 'https://www.facebook.com/gsbsarvajanikganeshotsava';
 
-  // Ensure Customer ID follows WADXXXXXXX (10 characters: WAD + 7 digits)
-  const customerId =
-    record.customerId ||
-    record.devoteeCode ||
-    (record.phone && record.phone.replace(/\D/g, '').length >= 7
-      ? `WAD${record.phone.replace(/\D/g, '').slice(-7)}`
-      : 'WAD1730401');
+  // Use the server-issued Devotee ID; never derive a fake identifier from a phone.
+  const customerId = record.customerId || record.devoteeCode || 'Not assigned';
 
   // Ensure Receipt No displays cleanly
   const receiptNo = record.receiptNo;
@@ -60,6 +55,7 @@ export default function ReceiptView({ record, onClose }: ReceiptViewProps) {
 
   const handleCopy = () => {
     const text =
+      (record.isTest ? '*TEST / DEMO DOCUMENT — NOT A REAL PAYMENT OR TAX RECEIPT*\n' : '') +
       `*${temple.trustName}*\n` +
       `RECEIPT NO: ${receiptNo}\n` +
       `CUSTOMER ID: ${customerId}\n` +
@@ -85,7 +81,7 @@ export default function ReceiptView({ record, onClose }: ReceiptViewProps) {
       `*RECEIPT NO :* ${receiptNo}\n` +
       `*CUSTOMER ID :* ${customerId}\n` +
       `*DATE :* ${formattedDate}\n\n` +
-      `*RECEIVED with thanks from :* ${record.devoteeName}\n` +
+      `${record.isDemo ? '*LOCAL DEMO REQUESTED BY :*' : '*RECEIVED with thanks from :*'} ${record.devoteeName}\n` +
       (record.address ? `*ADDRESS :* ${record.address}\n` : '') +
       `*MOBILE NO :* ${record.phone}\n` +
       (record.gotra ? `*GOTRA :* ${record.gotra}\n` : '') +
@@ -98,7 +94,7 @@ export default function ReceiptView({ record, onClose }: ReceiptViewProps) {
       `*PAYMENT MODE :* ${record.paymentMode}\n` +
       (record.paymentReference ? `*TRANSACTION NO :* ${record.paymentReference}\n` : '') +
       `\n*(Kindly quote your Customer ID in future communication)*\n\n` +
-      `Donation to this Trust is exempted u/s. 80G | PAN : ${temple.pan}\n` +
+      (record.isTest ? 'TEST / DEMO ONLY — No tax deduction or payment claim.\n' : `Donation to this Trust is exempted u/s. 80G | PAN : ${temple.pan}\n`) +
       `Website: ${temple.website}`;
 
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
@@ -233,11 +229,11 @@ export default function ReceiptView({ record, onClose }: ReceiptViewProps) {
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 border-b-2 border-gray-300 pb-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-gray-900 print:text-xs">
           <div>
             <span className="text-gray-600">RECEIPT NO : </span>
-            <span className="font-mono text-red-700 tracking-wider font-extrabold">{receiptNo}</span>
+            <span className="font-mono text-red-700 tracking-wider font-extrabold break-all">{receiptNo}</span>
           </div>
           <div className="sm:text-center">
             <span className="text-gray-600">CUSTOMER ID : </span>
-            <span className="font-mono text-maroon-900 tracking-wider font-extrabold">{customerId}</span>
+            <span className="font-mono text-maroon-900 tracking-wider font-extrabold break-all">{customerId}</span>
           </div>
           <div className="sm:text-right">
             <span className="text-gray-600">DATE : </span>
@@ -247,7 +243,7 @@ export default function ReceiptView({ record, onClose }: ReceiptViewProps) {
 
         {/* 3. Received with thanks from Shri/Smt/Ms. */}
         <div className="mt-3.5 space-y-1.5 text-xs sm:text-sm text-gray-900 print:text-xs">
-          <p className="text-gray-600 font-medium">RECEIVED with thanks from Shri/Smt/Ms.</p>
+          <p className="text-gray-600 font-medium">{record.isDemo ? 'LOCAL QA BOOKING REQUEST BY (NOT PAID)' : 'RECEIVED with thanks from Shri/Smt/Ms.'}</p>
 
           <div className="grid grid-cols-1 gap-1 pl-1">
             <div className="flex">
@@ -312,19 +308,21 @@ export default function ReceiptView({ record, onClose }: ReceiptViewProps) {
           </div>
         </div>
 
-        {/* 5. 80G Tax Exemption & Education/Medical Aid Notice Box (Iconic Blue Box from PDF) */}
-        <div className="mt-4 rounded-xl border-2 border-blue-600 bg-blue-50/50 p-2.5 sm:p-3 text-center print:mt-3 print:py-2">
-          <p className="font-bold text-xs sm:text-sm print:text-xs uppercase tracking-wider text-blue-900">
-            {temple.aidFundsNotice}
-          </p>
-          <p className="mt-0.5 text-[11px] sm:text-xs print:text-[10px] font-semibold text-blue-800">
-            {temple.section80GText}
-          </p>
-        </div>
+        {/* Only genuine live receipts can display trust tax/benefit information as an entitlement. */}
+        {record.isTest ? (
+          <div className="mt-4 rounded-xl border-2 border-red-500 bg-red-50 p-3 text-center font-bold text-red-950">
+            TEST / DEMO DOCUMENT ONLY — No payment received, tax benefit, prasad entitlement or pooja invitation is issued.
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border-2 border-blue-600 bg-blue-50/50 p-2.5 sm:p-3 text-center print:mt-3 print:py-2">
+            <p className="font-bold text-xs sm:text-sm print:text-xs uppercase tracking-wider text-blue-900">{temple.aidFundsNotice}</p>
+            <p className="mt-0.5 text-[11px] sm:text-xs print:text-[10px] font-semibold text-blue-800">{temple.section80GText}</p>
+          </div>
+        )}
 
         {/* 6. Computer Generated Disclaimer */}
         <div className="mt-2 text-center text-[10px] sm:text-xs print:text-[9.5px] text-gray-600 italic">
-          This is a computer generated receipt. No signature required.
+          {record.isTest ? 'Computer-generated QA specimen; invalid as proof of payment.' : 'This is a computer generated receipt. No signature required.'}
         </div>
 
         {/* 7. Bottom Itemized Table (Matches bottom 3-column table of PDF receipt) */}
@@ -383,9 +381,11 @@ export default function ReceiptView({ record, onClose }: ReceiptViewProps) {
               (Kindly quote your Customer ID: <span className="font-mono text-red-700 font-extrabold">{customerId}</span> in future communication)
             </p>
             <p className="text-gray-600 mt-0.5">
-              {record.attendanceMode === 'absentia'
-                ? 'Sankalp performed in-absentia by Vaidik. Blessed Prasad can be collected at Dwarkanath Bhavan counter.'
-                : 'Present this official e-receipt at Dwarkanath Bhavan counter for Seva Prasadam.'}
+              {record.isTest
+                ? 'QA ONLY: No seva is scheduled and no prasad or pooja invitation can be collected with this document.'
+                : record.attendanceMode === 'absentia'
+                  ? 'Sankalp performed in-absentia by Vaidik. Blessed Prasad can be collected at Dwarkanath Bhavan counter.'
+                  : 'Present this official e-receipt at Dwarkanath Bhavan counter for Seva Prasadam.'}
             </p>
           </div>
 
