@@ -68,8 +68,27 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
   const [demoEnabled,setDemoEnabled]=useState(false);
   const [gatewayConfigured,setGatewayConfigured]=useState(false);
   const signedIn=Boolean(sessionStorage.getItem('ganesh_devotee_token'));
+  useEffect(()=>{
+    const token=sessionStorage.getItem('ganesh_devotee_token');
+    if(!token)return;
+    apiRequest<{full_name?:string;phone?:string;email?:string;gotra?:string;nakshatra?:string;profile_completed:boolean;address?:{unit:string;building:string;street:string;locality:string;city:string;state:string;pincode:string}}>('/api/account/me',{},token)
+      .then(account=>{
+        if(!account.profile_completed)return;
+        const address=account.address ? [account.address.unit,account.address.building,account.address.street,account.address.locality,account.address.city,account.address.state,account.address.pincode].filter(Boolean).join(', ') : '';
+        setDetails(old=>({...old,name:account.full_name||old.name,phone:account.phone||old.phone,
+          email:account.email||old.email,gotra:account.gotra||old.gotra,nakshatra:account.nakshatra||old.nakshatra,address}));
+      }).catch(()=>{});
+  },[]);
+
   useEffect(()=>{apiRequest<{demoCheckoutEnabled?:boolean;configured?:boolean}>('/api/payments/config').then(result=>{setDemoEnabled(Boolean(result.demoCheckoutEnabled));setGatewayConfigured(Boolean(result.configured));}).catch(()=>{});},[]);
 
+
+  const fillQADetails = () => {
+    setDetails(old => ({...old, name:'QA Demo Devotee', phone:'9000000199',
+      email:'qa-demo@example.invalid', gotra:'Unknown', nakshatra:'Unknown',
+      address:'QA Flat 101, Test Building, Wadala, Mumbai 400031'}));
+    setErrors({});
+  };
 
   const set = (key: keyof DevoteeDetails, value: string) => {
     setDetails((prev) => ({ ...prev, [key]: value }));
@@ -240,6 +259,11 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
           </div>
 
           <div className="mt-6 space-y-5">
+            {demoEnabled && <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <strong>Local developer demo — no OTP, login or payment required</strong>
+              <p className="mt-1">Use fictional QA contact details only. Your demo order and DEMO-RCP receipt will be stored as unpaid test records.</p>
+              <button type="button" className="btn-secondary mt-3" onClick={fillQADetails}>Fill fictional QA details</button>
+            </div>}
             <div>
               <label htmlFor="devotee-name" className="field-label">
                 Devotee’s full name <span className="text-maroon-700">*</span>
@@ -501,12 +525,12 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
           </p>
 
           {paymentError && <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">{paymentError}</p>}
-          {!signedIn&&<div className="mt-5 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm"><strong>A devotee login is required before seva checkout.</strong><button className="mt-2 block font-bold underline" onClick={()=>{window.location.hash='#account';}}>Create account / Sign in</button></div>}
+          {!signedIn&&<div className="mt-5 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm"><strong>{demoEnabled ? 'Login is required only for real Razorpay checkout, not local demos.' : 'A devotee login is required before seva checkout.'}</strong><button className="mt-2 block font-bold underline" onClick={()=>{window.location.hash='#account';}}>Create account / Sign in</button></div>}
           <button onClick={handlePay} disabled={submitting||!signedIn||!gatewayConfigured} className="btn-primary mt-6 w-full shadow-lift">
             {submitting ? 'Processing…' : `Proceed to Pay ${rupees(total)}`}
           </button>
-          {!gatewayConfigured&&<p className="mt-2 text-sm text-amber-800">Razorpay is not configured for this environment. Use local demo checkout below or provide valid Razorpay Test Mode credentials.</p>}
-          {demoEnabled&&<div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm"><strong>Local Development Demo (no money collected)</strong><p className="my-2">Generates a visibly invalid DEMO-RCP receipt saved in PostgreSQL, without Razorpay keys.</p><button className="btn-secondary w-full" disabled={submitting||!signedIn} onClick={handleDemo}>Generate DEMO booking + receipt (₹0 charged)</button></div>}
+          {!gatewayConfigured&&<p className="mt-2 text-sm text-amber-800">{demoEnabled ? 'Razorpay is not configured; use free local QA checkout below.' : 'Razorpay is not configured. For local demos set ENABLE_DEMO_CHECKOUT=1 on a dedicated localhost development database; for real payments configure Razorpay keys.'}</p>}
+          {demoEnabled&&<div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm"><strong>Local Development Demo (no money collected)</strong><p className="my-2">No login, phone/email OTP, profile completion or Razorpay keys needed. Creates an UNPAID guest QA booking and DEMO-RCP in PostgreSQL (lookup by receipt ID + QA phone). Does not create a Family ID or send SMS.</p><button className="btn-secondary w-full" disabled={submitting} onClick={handleDemo}>Generate unpaid DEMO booking + receipt (₹0 charged)</button></div>}
           <button
             onClick={() => setStage('details')}
             className="mt-3 w-full text-center text-sm font-semibold text-maroon-800 hover:text-maroon-950"
@@ -546,7 +570,9 @@ export default function SevaCheckoutForm({ onBack }: { onBack: () => void }) {
               Dwarkanath Bhavan, Wadala
             </p>
             <p className="leading-relaxed">
-              Official e-receipt is generated upon completion. No extra transaction or platform fee is charged.
+              {demoEnabled && !gatewayConfigured
+                ? 'Local QA creates an unpaid test record only. Official receipts require a verified Razorpay payment.'
+                : 'Official e-receipt is generated only after verified payment capture. No extra transaction or platform fee is charged.'}
             </p>
           </div>
         </aside>

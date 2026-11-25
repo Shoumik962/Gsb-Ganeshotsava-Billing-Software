@@ -227,3 +227,15 @@ This is a **functional integration baseline, not a production-certified deployme
 The **root `.gitignore`** covers Windows/macOS Python virtual environments, Node `node_modules`, compiled `dist` output, `.env`/secret files, caches, local databases and dumps, logs, generated receipts, GPS/identity exports and test artifacts. Commit `frontend/package-lock.json`, both backend `requirements*.txt`, Alembic migrations, `.env.example`, GitHub Actions files, and `backend/app/sevas.json` (original 27-seva import definitions). **Do not push real devotees, QA login passwords, payment receipts or database exports.**
 
 Before committing your **existing GitHub branch**, run `git add .gitignore backend/ frontend/ scripts/ docs/ architecture/ .github/ README.md`, inspect `git diff --cached --name-only`, then run `python scripts/check_git_staged.py`. This is a best-effort path check, not a secrets scanner. See `docs/GITIGNORE_AND_SAFE_GITHUB_PUSH.md` for fixing previously tracked secrets and for both Windows/macOS usage.
+
+---
+
+## v6 — Verified devotee registration, household identity and receipt SMS
+
+**New migration:** `0004_verification` (27 application tables, excluding `alembic_version`). The v6 project adds mandatory unit-level address and Gotra/Nakshatra fields, 90%-threshold address search, distinct SMS/email verification, first-login profile completion, reviewed family linkage, one household benefit per event and type, and opt-in receipt reference notifications tied to the issued receipt ID.
+
+Please follow **[docs/V6_VERIFIED_SIGNUP_E2E.md](docs/V6_VERIFIED_SIGNUP_E2E.md)** to run the backend, PostgreSQL 18 migration, React frontend and synthetic E2E tests on your local Windows CMD installation. Mac setup instructions are included in the same guide.
+
+**Local .env additions:** `EMAIL_PROVIDER=console`, `SMS_PROVIDER=console`, and `PUBLIC_FRONTEND_URL=http://localhost:5173` for fee-free console-only QA. **Never use console OTP outside development.** For real SMS/email delivery, use `SMS_PROVIDER=twilio` and `EMAIL_PROVIDER=smtp` with configured account credentials and approved sender identities. The code does not include credentials.
+
+**Verified backend regression:** 28 tests passed in the packaging environment. Alembic 0001–0004 migrated an isolated test database, and all 27 models compiled for PostgreSQL DDL. **Full npm/Vite build and actual user-machine PostgreSQL 18/SMS sending remain to be checked locally.**

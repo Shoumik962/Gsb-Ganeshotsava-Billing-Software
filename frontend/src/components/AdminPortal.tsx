@@ -9,6 +9,10 @@ type Summary={registered_users:number;active_sevas:number;total_bookings:number;
 type AdminUser={id:string;username:string;role:string;email?:string;full_name?:string;active:boolean;email_verified:boolean};
 type Audit={id:string;actor_id:string;action:string;resource_type:string;resource_id:string;created_at:string};
 type Booking={id:string;name:string;phone:string;items:{name:string}[];amount:number;status:string;gateway_mode:string;receipt_no?:string};
+type FamilyLink={id:string;devotee_id:string;family_id:string;address_id:string;status:string};
+type FamilyOption={id:string;family_code:string;name:string};
+type HouseholdBenefit={id:string;address_id:string;event_code:string;benefit_type:string;voucher_code:string};
+type Delivery={id:string;receipt_id:string;receipt_no?:string;phone_masked?:string;status:string;attempts:number;last_error?:string};
 const defaults={id:'',name:'',price:101,category:'offerings',timing:'',note:'',exceptEkadashi:false,active:true};
 const emptySite:Settings={announcement:'',hero_title:'',booking_enabled:true,donations_enabled:true,contact_phone:'',temple_image_url:''};
 const field='field-input w-full';
@@ -18,11 +22,16 @@ export default function AdminPortal() {
   const [role,setRole]=useState(()=>sessionStorage.getItem('ganesh_staff_role')||'');
   const [username,setUsername]=useState('');const [password,setPassword]=useState('');
   const [error,setError]=useState('');const [notice,setNotice]=useState('');const [busy,setBusy]=useState(false);
-  const [tab,setTab]=useState<'sevas'|'website'|'users'|'bookings'|'audit'>('sevas');
+  const [tab,setTab]=useState<'sevas'|'website'|'users'|'bookings'|'audit'|'households'|'deliveries'>('sevas');
   const [sevas,setSevas]=useState<AdminSeva[]>([]);const [form,setForm]=useState({...defaults});const [editing,setEditing]=useState(false);
   const [site,setSite]=useState<Settings>(emptySite);
   const [summary,setSummary]=useState<Summary|null>(null);
   const [users,setUsers]=useState<AdminUser[]>([]);const [bookings,setBookings]=useState<Booking[]>([]);const [audits,setAudits]=useState<Audit[]>([]);
+  const [familyLinks,setFamilyLinks]=useState<FamilyLink[]>([]);
+  const [families,setFamilies]=useState<FamilyOption[]>([]);
+  const [benefits,setBenefits]=useState<HouseholdBenefit[]>([]);
+  const [deliveries,setDeliveries]=useState<Delivery[]>([]);
+  const [benefitForm,setBenefitForm]=useState({family_id:'',event_code:'GANESHOTSAV-2027',benefit_type:'prasad_voucher'});
   const [staffForm,setStaffForm]=useState({username:'',password:'',role:'sevadar',zone:''});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string>('');
@@ -60,7 +69,7 @@ export default function AdminPortal() {
   const call=useCallback(<T,>(path:string,method='GET',data?:unknown):Promise<T>=>apiRequest<T>(path,{method,...(data!==undefined?{body:JSON.stringify(data)}:{})},token),[token]);
   const refresh=useCallback(async()=>{
     if (!token || !['super_admin','admin'].includes(role)) return;
-    try {const [a,b,c,d,e,f]=await Promise.all([call<AdminSeva[]>('/api/admin/sevas'),call<Settings>('/api/site/settings'),call<Summary>('/api/admin/dashboard'),call<AdminUser[]>('/api/admin/users'),call<Booking[]>('/api/admin/bookings'),call<Audit[]>('/api/admin/audit')]);setSevas(a);setSite(b);setSummary(c);setUsers(d);setBookings(e);setAudits(f);}
+    try {const [a,b,c,d,e,f]=await Promise.all([call<AdminSeva[]>('/api/admin/sevas'),call<Settings>('/api/site/settings'),call<Summary>('/api/admin/dashboard'),call<AdminUser[]>('/api/admin/users'),call<Booking[]>('/api/admin/bookings'),call<Audit[]>('/api/admin/audit')]);setSevas(a);setSite(b);setSummary(c);setUsers(d);setBookings(e);setAudits(f);const [g,h,i,j]=await Promise.all([call<FamilyLink[]>('/api/admin/family-link-requests'),call<FamilyOption[]>('/api/families'),call<HouseholdBenefit[]>('/api/admin/household-benefits'),call<Delivery[]>('/api/admin/receipt-deliveries')]);setFamilyLinks(g);setFamilies(h);setBenefits(i);setDeliveries(j);}
     catch(e){setError(e instanceof Error?e.message:'Unable to load admin data');}
   },[token,role,call]);
   useEffect(()=>{void refresh();},[refresh]);
@@ -84,7 +93,7 @@ export default function AdminPortal() {
   return <div className="mx-auto max-w-6xl space-y-6">
     <div className="rounded-2xl bg-cream-100 p-6"><div className="flex flex-wrap justify-between gap-3"><div><h1 className="font-display text-3xl font-bold">Website Administration</h1><p className="mt-1 text-sm">Manage the live PostgreSQL seva catalogue, website settings, accounts and booking activity.</p></div><button className="btn-secondary" onClick={logout}>Sign out</button></div></div>
     {summary&&<div className="grid grid-cols-2 gap-2 sm:grid-cols-5">{Object.entries(summary).map(([k,v])=><div key={k} className="card p-3 text-center"><p className="text-2xl font-black">{v}</p><p className="text-xs capitalize">{k.replaceAll('_',' ')}</p></div>)}</div>}
-    <div className="flex flex-wrap gap-2">{(['sevas','website','users','bookings','audit'] as const).map(t=><button key={t} className={tab===t?'btn-primary':'btn-secondary'} onClick={()=>setTab(t)}>{t==='sevas'?'Manage Sevas':t==='website'?'Website Controls':t==='users'?'Users & Staff':t==='bookings'?'Bookings & Receipts':'Audit History'}</button>)}</div>
+    <div className="flex flex-wrap gap-2">{(['sevas','website','users','bookings','households','deliveries','audit'] as const).map(t=><button key={t} className={tab===t?'btn-primary':'btn-secondary'} onClick={()=>setTab(t)}>{t==='sevas'?'Manage Sevas':t==='website'?'Website Controls':t==='users'?'Users & Staff':t==='bookings'?'Bookings & Receipts':t==='households'?'Families & Vouchers':t==='deliveries'?'Receipt SMS':'Audit History'}</button>)}</div>
     {error&&<p className="rounded-lg bg-red-50 p-3 text-red-900" role="alert">{error}</p>}{notice&&<p className="rounded-lg bg-green-50 p-3 text-green-900" role="status">{notice}</p>}
     {tab==='sevas'&&<div className="grid gap-5 lg:grid-cols-[minmax(290px,1fr)_2fr]">
       <form onSubmit={saveSeva} className="card space-y-3 p-5"><h2 className="text-xl font-bold">{editing?'Edit Seva':'Add New Seva'}</h2>
@@ -194,6 +203,31 @@ export default function AdminPortal() {
     </div>}
     {tab==='users'&&<div className="space-y-5"><div className="card overflow-auto p-5"><h2 className="mb-3 text-xl font-bold">Registered users ({users.length})</h2><table className="w-full text-left text-sm"><thead><tr><th>Username</th><th>Role</th><th>Email</th><th>Status</th><th>Action</th></tr></thead><tbody>{users.map(u=><tr key={u.id} className="border-t"><td className="py-2">{u.username}</td><td>{u.role}</td><td>{u.email||'—'}</td><td>{u.active?'Active':'Inactive'}</td><td>{role==='super_admin'&&u.role!=='super_admin'&&<button className="underline" disabled={busy} onClick={()=>void doAction(()=>call(`/api/admin/users/${u.id}/status`,'PATCH',{active:!u.active}),'User status updated')}>{u.active?'Deactivate':'Activate'}</button>}</td></tr>)}</tbody></table></div>
       {role==='super_admin'&&<form className="card max-w-xl space-y-3 p-5" onSubmit={e=>{e.preventDefault();void doAction(()=>call('/api/admin/users','POST',staffForm),'Staff user created');}}><h2 className="text-xl font-bold">Create Admin / Sevadar</h2><label className="block">Username<input className={field} required value={staffForm.username} onChange={e=>setStaffForm({...staffForm,username:e.target.value})}/></label><label className="block">Password (12+ characters)<input className={field} type="password" minLength={12} required value={staffForm.password} onChange={e=>setStaffForm({...staffForm,password:e.target.value})}/></label><label className="block">Role<select className={field} value={staffForm.role} onChange={e=>setStaffForm({...staffForm,role:e.target.value})}><option value="sevadar">Sevadar</option><option value="admin">Admin</option></select></label><label className="block">Sevadar zone<input className={field} value={staffForm.zone} onChange={e=>setStaffForm({...staffForm,zone:e.target.value})}/></label><button disabled={busy} className="btn-primary">Create staff user</button></form>}
+    </div>}
+    {tab==='households'&&<div className="space-y-5">
+      <div className="card space-y-3 p-5"><h2 className="text-xl font-bold">Family link requests ({familyLinks.length})</h2>
+        <p className="text-sm">Same phone or address is not proof of family membership. Check consent and household relationship with the devotee before approving.</p>
+        {familyLinks.map(l=><div key={l.id} className="rounded-lg border p-3 text-sm">
+          <p>Devotee: {l.devotee_id} · Proposed family: {families.find(f=>f.id===l.family_id)?.family_code||l.family_id}</p>
+          <div className="mt-2 flex gap-2"><button className="btn-primary" disabled={busy} onClick={()=>void doAction(()=>call(`/api/admin/family-link-requests/${l.id}/decision`,'POST',{approve:true,relationship:'member'}),'Family link approved')}>Approve after review</button>
+          <button className="btn-secondary" disabled={busy} onClick={()=>void doAction(()=>call(`/api/admin/family-link-requests/${l.id}/decision`,'POST',{approve:false}),'Family link rejected')}>Reject</button></div></div>)}
+        {!familyLinks.length&&<p className="text-sm">No pending family requests.</p>}
+      </div>
+      <form className="card max-w-2xl space-y-3 p-5" onSubmit={e=>{e.preventDefault();void doAction(()=>call('/api/admin/household-benefits','POST',benefitForm),'Household benefit issued');}}>
+        <h2 className="text-xl font-bold">Issue a household voucher or invitation</h2>
+        <p className="text-sm">Only one benefit of each type is permitted per matching flat/address and event, even across multiple Family IDs.</p>
+        <label className="block text-sm">Confirmed family<select className={field} required value={benefitForm.family_id} onChange={e=>setBenefitForm({...benefitForm,family_id:e.target.value})}><option value="">Select family</option>{families.map(f=><option value={f.id} key={f.id}>{f.family_code} · {f.name}</option>)}</select></label>
+        <label className="block text-sm">Event code<input className={field} required value={benefitForm.event_code} onChange={e=>setBenefitForm({...benefitForm,event_code:e.target.value})}/></label>
+        <label className="block text-sm">Benefit type<select className={field} value={benefitForm.benefit_type} onChange={e=>setBenefitForm({...benefitForm,benefit_type:e.target.value})}><option value="prasad_voucher">Prasad voucher</option><option value="pooja_invitation">Pooja invitation</option></select></label>
+        <button className="btn-primary" disabled={busy}>Issue (prevent duplicate)</button>
+      </form>
+      <div className="card space-y-2 p-5"><h2 className="text-xl font-bold">Issued household benefits ({benefits.length})</h2>{benefits.map(b=><p className="text-sm" key={b.id}><strong>{b.voucher_code}</strong> · {b.event_code} · {b.benefit_type}</p>)}</div>
+    </div>}
+    {tab==='deliveries'&&<div className="card space-y-3 p-5"><h2 className="text-xl font-bold">Receipt SMS delivery queue</h2>
+      <p className="text-sm">SMS is sent only to the verified account phone with opt-in consent, after a captured payment. Demo receipts are never sent.</p>
+      {deliveries.map(d=><div className="flex flex-wrap items-center justify-between gap-3 border-b py-2 text-sm" key={d.id}><p>Receipt: <strong>{d.receipt_no||d.receipt_id}</strong> {d.phone_masked&&`(${d.phone_masked})`} · Status: <strong>{d.status}</strong> · Attempts: {d.attempts} {d.last_error&&` · ${d.last_error}`}</p>
+        {d.status==='failed'&&<button disabled={busy||d.attempts>=5} className="btn-secondary" onClick={()=>void doAction(()=>call(`/api/admin/receipt-deliveries/${d.id}/retry`,'POST',{}),'Delivery retried')}>Retry SMS</button>}</div>)}
+      {!deliveries.length&&<p>No receipt delivery records.</p>}
     </div>}
     {tab==='audit'&&<div className="card overflow-auto p-5"><h2 className="mb-4 text-xl font-bold">Administrative change history</h2><table className="w-full text-left text-sm"><thead><tr><th>Action</th><th>Resource</th><th>Time</th></tr></thead><tbody>{audits.map(a=><tr key={a.id} className="border-t"><td className="py-2">{a.action}</td><td>{a.resource_type}: {a.resource_id}</td><td>{new Date(a.created_at).toLocaleString('en-IN')}</td></tr>)}</tbody></table>{!audits.length&&<p>No changes recorded yet.</p>}</div>}
     {tab==='bookings'&&<div className="card overflow-auto p-5"><h2 className="mb-4 text-xl font-bold">Seva bookings and receipts ({bookings.length})</h2><table className="w-full text-left text-sm"><thead><tr><th>Devotee</th><th>Seva</th><th>Amount</th><th>Status</th><th>Receipt</th></tr></thead><tbody>{bookings.map(b=><tr className="border-t" key={b.id}><td className="py-2">{b.name}<p className="text-xs">{b.phone}</p></td><td>{b.items.map(x=>x.name).join(', ')}</td><td>₹{b.amount.toLocaleString('en-IN')}</td><td>{b.status} ({b.gateway_mode})</td><td className="break-all">{b.receipt_no||'Pending payment'}</td></tr>)}</tbody></table>{!bookings.length&&<p>No bookings yet.</p>}</div>}

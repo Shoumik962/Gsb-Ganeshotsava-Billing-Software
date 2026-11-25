@@ -91,11 +91,11 @@ async function createAndPay(purpose: 'seva'|'donation', payload: SevaBookingPayl
 }
 export async function submitSevaBooking(payload: SevaBookingPayload): Promise<SubmitResult> { return createAndPay('seva', payload); }
 export async function submitSevaDemo(payload: SevaBookingPayload): Promise<SubmitResult> {
-  const token=sessionStorage.getItem('ganesh_devotee_token');
-  if(!token)throw new Error('Sign in under My Account before creating a demo seva booking.');
+  // Local QA is always anonymous: even a stale session must not block a demo.
+  // The API is exclusively available on localhost with a dedicated dev database.
   return apiRequest<SubmitResult>('/api/payments/demo-checkout',{
     method:'POST',body:JSON.stringify({purpose:'seva',...payload}),
-  },token);
+  });
 }
 export async function submitDonation(payload: DonationPayload): Promise<SubmitResult> { return createAndPay('donation', payload); }
 export async function lookupReceipt(receiptNo: string, phone: string): Promise<BookingRecord> {

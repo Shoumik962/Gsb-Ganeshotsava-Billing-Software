@@ -72,8 +72,10 @@ def list_benefits(db:Session=Depends(get_db),user:User=Depends(admin)):
 
 @router.get('/admin/receipt-deliveries')
 def list_deliveries(db:Session=Depends(get_db),user:User=Depends(admin)):
-    return [{'id':x.id,'receipt_id':x.receipt_id,'status':x.status,'attempts':x.attempts,
-             'last_error':x.error} for x in db.scalars(select(ReceiptDelivery).limit(200))]
+    rows=db.execute(select(ReceiptDelivery,Receipt.receipt_no).join(Receipt,ReceiptDelivery.receipt_id==Receipt.id).limit(200)).all()
+    return [{'id':x.id,'receipt_id':x.receipt_id,'receipt_no':receipt_no,
+             'phone_masked':(x.phone[:2]+'X'*6+x.phone[-2:]) if len(x.phone)>=10 else x.phone,
+             'status':x.status,'attempts':x.attempts,'last_error':x.error} for x,receipt_no in rows]
 
 @router.post('/admin/receipt-deliveries/{delivery_id}/retry')
 def retry_delivery(delivery_id:str,db:Session=Depends(get_db),user:User=Depends(admin)):
